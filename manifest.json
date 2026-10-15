@@ -1,0 +1,94 @@
+{
+  "manifest_version": "0.4",
+  "name": "zapmcp",
+  "display_name": "ZapMCP",
+  "version": "0.3.3",
+  "description": "Conversas do WhatsApp Desktop deste Mac para o Claude, lidas de uma cópia local. Só leitura.",
+  "long_description": "Lê uma cópia do banco local do WhatsApp Desktop, monta um índice com busca e oferece tools para listar conversas, ler mensagens, buscar, abrir anexos (imagens e documentos) e transcrever áudios (os dos últimos 7 dias e os novos, automaticamente). A transcrição roda no próprio Mac (whisper.cpp, modelo de 0,6 GB baixado uma vez). Nada se conecta aos servidores do WhatsApp e a pasta do WhatsApp nunca é alterada. Os dados ficam em ~/Library/Application Support/zapmcp.",
+  "author": {
+    "name": "Pedro Souto"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pedrosoutom/zapmcp"
+  },
+  "license": "MIT",
+  "server": {
+    "type": "uv",
+    "entry_point": "src/zapmcp/server.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "${__dirname}",
+        "zapmcp",
+        "serve"
+      ],
+      "env": {
+        "ZAPMCP_TRANSCRIBE": "${user_config.transcribe}",
+        "ZAPMCP_TRANSCRIBE_ON_BATTERY": "${user_config.on_battery}",
+        "ZAPMCP_TRANSCRIBE_ARCHIVED": "${user_config.archived_groups}"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "list_chats",
+      "description": "Lista conversas (grupos e individuais), com busca por nome aproximado."
+    },
+    {
+      "name": "get_messages",
+      "description": "Mensagens de uma conversa num período, uma por linha."
+    },
+    {
+      "name": "search",
+      "description": "Busca por palavras em todas as conversas, com as mensagens ao redor."
+    },
+    {
+      "name": "view_images",
+      "description": "Mostra imagens das conversas pelo número do anexo."
+    },
+    {
+      "name": "read_document",
+      "description": "Lê documentos anexados (PDF, Word, Excel, PowerPoint, HTML, texto, ZIP), em partes."
+    },
+    {
+      "name": "transcribe_audio",
+      "description": "Transcreve na hora áudios que ainda não foram transcritos."
+    }
+  ],
+  "compatibility": {
+    "platforms": [
+      "darwin"
+    ],
+    "runtimes": {
+      "python": ">=3.12"
+    }
+  },
+  "keywords": [
+    "whatsapp",
+    "local",
+    "mensagens"
+  ],
+  "user_config": {
+    "transcribe": {
+      "type": "boolean",
+      "title": "Transcrever áudios",
+      "description": "Transcreve no próprio Mac os áudios dos últimos 7 dias e cada áudio novo, fora de grupos arquivados. Os demais, só quando o Claude pedir.",
+      "default": true
+    },
+    "archived_groups": {
+      "type": "boolean",
+      "title": "Transcrever grupos arquivados",
+      "description": "Desligado: áudios de grupos arquivados só são transcritos quando o Claude pedir.",
+      "default": false
+    },
+    "on_battery": {
+      "type": "boolean",
+      "title": "Transcrever também na bateria",
+      "description": "Desligado: com o Mac na bateria, só transcreve os áudios que o Claude pedir.",
+      "default": false
+    }
+  }
+}
