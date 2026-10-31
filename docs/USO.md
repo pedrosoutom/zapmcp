@@ -11,9 +11,17 @@ WhatsApp (área protegida) ──copia──▶ indexador ──grava──▶ i
 
 - macOS com o WhatsApp Desktop (app nativo) logado
 - [uv](https://docs.astral.sh/uv/) (`brew install uv`)
-- Permissão para ler `~/Library/Group Containers/group.net.whatsapp.WhatsApp.shared`: o app que roda o
-  ZapMCP (Terminal, Claude Desktop…) precisa de Acesso Total ao Disco em Ajustes do Sistema >
-  Privacidade e Segurança, se o macOS negar o acesso.
+- Para gerar a extensão: Node.js (`brew install node`), que roda o empacotador `mcpb`, e as
+  ferramentas de linha de comando da Apple (`xcode-select --install`; já vêm com o Homebrew), que
+  compilam o lançador
+- Permissão para ler `~/Library/Group Containers/group.net.whatsapp.WhatsApp.shared`. O macOS cobra o
+  programa "responsável" por quem lê a pasta:
+  - na extensão do Claude Desktop, é o lançador `bin/zapmcp` (ver [README](../README.md#3-liberar-o-acesso-uma-vez-só));
+  - na configuração manual do Claude Desktop, deve ser o programa do `command` (não testado);
+  - no terminal, e no Claude Code rodando no terminal, é o app de terminal.
+
+  Sem Acesso Total ao Disco, o macOS pergunta "quer acessar dados de outros apps?", e o "Permitir"
+  vale só por um tempo.
 
 ## Comandos
 
@@ -34,12 +42,17 @@ Datas aceitas em `--since`/`--until` e nas tools: `7d`, `24h`, `2w`, `hoje`, `on
 **Claude Desktop, pela interface (extensão)**
 
 ```bash
-npx @anthropic-ai/mcpb pack . dist/ZapMCP.mcpb
+make    # compila bin/zapmcp (só quando launcher/zapmcp.c muda) e gera dist/ZapMCP.mcpb
 ```
 
 Depois, em Claude Desktop > Ajustes > Extensões, arraste o `dist/ZapMCP.mcpb` para a página e
-clique em Instalar (ou dê dois cliques no arquivo). O Claude cuida do Python e das dependências.
-A extensão instalada é uma cópia: depois de mudar o código, gere o `.mcpb` de novo e reinstale.
+clique em Instalar (ou dê dois cliques no arquivo). A extensão instalada é uma cópia: depois de mudar
+o código, gere o `.mcpb` de novo e reinstale.
+
+A extensão é do tipo `binary`: o Claude Desktop inicia o lançador `bin/zapmcp`, que inicia
+`uv run … zapmcp serve` e fica esperando. O `uv` instala o Python e as dependências na primeira vez.
+O lançador existe por causa da permissão: no tipo `uv`, o Claude Desktop inicia o `uv` direto e é o
+`uv` que precisa do Acesso Total ao Disco, valendo para qualquer coisa que rode por ele.
 
 **Claude Code**
 

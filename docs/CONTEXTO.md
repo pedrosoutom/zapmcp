@@ -1,6 +1,6 @@
 # ZapMCP — contexto do projeto
 
-Documento de passagem de bastão entre sessões. Atualizado em 2026-10-15, versão 0.3.3.
+Documento de passagem de bastão entre sessões. Atualizado em 2026-10-31, versão 0.3.5.
 Próximo passo combinado: **discutir stack e abordagem do app de desktop** (seção 9).
 
 ## 1. O que é
@@ -12,7 +12,7 @@ API não oficial, não fala com os servidores do WhatsApp e nunca escreve na pas
 Hoje é só MCP (extensão `.mcpb` do Claude Desktop), rodando no Mac do autor. A v1 está concluída e em
 uso; o autor ainda vai testar a leitura de documentos na prática.
 
-## 2. Estado atual (v0.3.3)
+## 2. Estado atual (v0.3.5)
 
 | Tool | O que faz |
 |---|---|
@@ -40,6 +40,10 @@ large-v3-turbo **q5_0** (574 MB, baixado uma vez do Hugging Face, conferido por 
 Ajustes na extensão (manifest `user_config`): transcrever áudios, transcrever grupos arquivados,
 transcrever também na bateria.
 
+Permissão (v0.3.5): a extensão é do tipo `binary` e o Claude Desktop inicia o **lançador
+`bin/zapmcp`**, que inicia o `uv` e fica esperando. O Acesso Total ao Disco é dado uma vez ao
+lançador, e o macOS para de perguntar. Detalhes e medições na seção 7.
+
 ## 3. Como rodar
 
 ```bash
@@ -50,16 +54,19 @@ uv run zapmcp chats "nome"
 uv run zapmcp export --chat "nome" --since 7d --out ./export/
 uv run zapmcp transcribe [--all] [--archived] [--limit N]
 uv run zapmcp serve              # servidor MCP (stdio)
-npx @anthropic-ai/mcpb pack . dist/ZapMCP.mcpb   # empacota a extensão (tipo "uv")
+make                             # compila o lançador (se mudou) e gera dist/ZapMCP.mcpb
 ```
 
 Instalação no Claude Desktop: **Ajustes > Extensões**, arrastar o `.mcpb` (ou dois cliques). Não é
 pela tela "Add custom connector", que é para servidores remotos por URL. A extensão instalada é uma
-cópia: após mudar código, reempacotar e reinstalar. A aba Code do app usa a mesma extensão.
+cópia: após mudar código, reempacotar e reinstalar. A aba Code do app usa a mesma extensão. Mesmo
+número de versão não é tratado como atualização: subir a versão no `manifest.json` (e no
+`pyproject.toml`) a cada pacote novo.
 
 ## 4. Arquitetura e código
 
 ```
+Claude Desktop ──inicia──▶ lançador bin/zapmcp (responsável perante o macOS) ──▶ uv ──▶ servidor MCP
 WhatsApp (Group Container, protegido) ──cópia──▶ indexador ──▶ index.db ◀── servidor MCP ◀── Claude
                                    └─ mídia lida direto (só leitura) ──▶ tools de anexo
                      trabalhador de transcrição (processo separado) ──▶ transcripts.db + index.db
@@ -78,8 +85,10 @@ WhatsApp (Group Container, protegido) ──cópia──▶ indexador ──▶ 
 | `transcripts.py` | cache de transcrições, fila de pedidos, falhas recentes |
 | `worker.py` | fila de transcrição em processo próprio |
 | `server.py` | servidor FastMCP e as tools |
+| `launcher/zapmcp.c` | lançador em C: acha o `uv`, inicia-o como filho, repassa sinais e o código de saída; não escreve no stdout |
+| `Makefile` | compila o lançador (só quando o fonte muda; assinatura ad hoc) e empacota o `.mcpb` |
 | `cli.py`, `dates.py` | linha de comando; datas como `7d`, `hoje`, `AAAA-MM-DD` |
-| `manifest.json`, `.mcpbignore` | extensão MCPB (tipo `uv`: o Claude Desktop instala Python e dependências) |
+| `manifest.json`, `.mcpbignore` | extensão MCPB, tipo `binary`: o Claude Desktop roda o lançador, e o `uv` instala Python e dependências |
 
 Dados em `~/Library/Application Support/zapmcp/`: `index.db`, `transcripts.db`,
 `models/`, `logs/transcricao.log`, `transcricao.lock`, `snapshot/` (temporária).
@@ -148,8 +157,19 @@ sem documentação: pode mudar numa atualização do app.
 - **Direção do produto (2026-10-13):** transformar o código atual num **aplicativo de desktop
   open-source**. Não vai para a App Store nem para loja nenhuma: o usuário baixa ou roda o código
   aberto que disponibilizarmos.
+- **Lançador próprio na extensão (2026-10-31):** em vez de dar Acesso Total ao Disco ao `uv` (que
+  valeria para qualquer coisa rodada por ele), a extensão passou a ser do tipo `binary` e o Claude
+  Desktop inicia `bin/zapmcp`, que recebe a permissão. Solução para o modo só-MCP; no app, quem
+  recebe a permissão é o app assinado.
+- **Distribuição do app (pesquisa de 2026-10-31):** os apps open source de Mac que pedem permissões
+  (AltTab, Stats, Ice, Maccy, OpenScreen) assinam com Developer ID e notarizam no CI, a cada versão,
+  e distribuem por DMG nas Releases e tap próprio do Homebrew. Sem isso: "Abrir Mesmo Assim" nos
+  Ajustes (o Control-clique deixou de funcionar no macOS 15), permissão perdida a cada versão e,
+  desde 2026-09-01, fora dos casks oficiais do Homebrew. Para desenvolver, certificado gratuito
+  (Apple Development ou autoassinado). Atualização automática (Sparkle) é opcional; meio-termo
+  considerado: o app só avisar que há versão nova, com link para a página de download.
 
-## 7. Medições (Mac do autor, M1, 8 GB, set/2026)
+## 7. Medições (Mac do autor, M1, 8 GB, set/2026; permissões em out/2026, macOS 26.2)
 
 - Índice completo em ~10 s; atualização incremental ~1 s.
 - Tools respondem em 2 a 300 ms (imagens e documentos grandes no topo da faixa).
@@ -161,11 +181,26 @@ sem documentação: pode mudar numa atualização do app.
   - whisper.cpp q5 (0,6 GB): 3,6%; 1 frase repetida em 30; diferenças quase todas de estilo.
   - mlx-whisper: 2 de 10 áudios terminaram em lixo; instalação pesada (PyTorch). Descartado.
   - Erro comum a todos: "Claude" vira "Cloud" (termos técnicos e nomes próprios).
+- Permissões (registros do TCC, `log show --predicate 'subsystem == "com.apple.TCC"'`):
+  - O Claude Desktop inicia extensões com `Claude.app/Contents/Helpers/disclaimer --pgroup -- <comando>`:
+    o comando vira o processo **responsável** e os filhos herdam. No tipo `uv`, o Claude ignora o
+    `command` do manifest e roda o `uv` direto; no tipo `binary`, roda o `command`.
+  - Ler a pasta do WhatsApp sem Acesso Total ao Disco gera o pedido "dados de outros apps"
+    (`kTCCServiceSystemPolicyAppData`). O "Permitir" é de sessão: o log marca "Session scoped auth is
+    invalid" e a mesma execução pediu de novo 43 min depois. Em 2026-10-21 foram 6 pedidos, todos em
+    nome do `uv`, vindos do servidor, do trabalhador de transcrição e do `afconvert`.
+  - Antes do pedido, o macOS consulta se o responsável tem Acesso Total ao Disco
+    (`kTCCServiceSystemPolicyAllFiles`). Binários ad hoc são identificados pelo caminho e pela
+    assinatura; recompilar o lançador gera outro binário (conferido) e a permissão cai.
+  - Com o lançador: o pedido saiu em nome do `zapmcp`; com o Acesso Total ao Disco dado a ele, a
+    leitura passou sem pedido (`authValue=2`). O item às vezes não aparece na lista dos Ajustes,
+    mas a permissão vale. `tccutil reset` só remove itens por identificador de pacote; itens por
+    caminho só saem limpando a lista inteira.
 
 ## 8. Pendências e ideias em aberto
 
-Melhorias já descritas em detalhe estão no [ROADMAP.md](../ROADMAP.md): liberar o acesso uma vez só
-e o dicionário de apelidos para achar conversas.
+Melhorias já descritas em detalhe estão no [ROADMAP.md](../ROADMAP.md): o que falta da liberação
+do acesso (assinatura estável do lançador) e o dicionário de apelidos para achar conversas.
 
 - **Nome final.**
 - **Privacidade do índice**: `index.db` e `transcripts.db` ficam em pasta comum, legíveis por
@@ -203,9 +238,10 @@ para a discussão:
 - Status (última atualização, fila de transcrição) na barra de menu.
 
 **Por que um app (argumentos levantados)**
-- Permissão: no macOS o acesso de um processo filho é atribuído ao app que o iniciou. No modo só-MCP,
-  quem precisa ler a pasta do WhatsApp é o Claude, e a permissão vale para tudo o que o Claude roda.
-  Com um app, só ele recebe o Acesso Total ao Disco e o servidor MCP lê apenas o índice.
+- Permissão: o macOS atribui o acesso ao processo responsável (seção 7). No modo só-MCP, quem lê a
+  pasta do WhatsApp é o servidor, e o responsável é o lançador `bin/zapmcp` (antes, o `uv`). Com um
+  app, só ele recebe o Acesso Total ao Disco, a permissão sobrevive às atualizações (Developer ID) e
+  o servidor MCP lê apenas o índice.
 - Atualização por evento (FSEvents no `-wal`) em vez de a cada 5 min, e transcrição sem depender do
   Claude aberto.
 - Contra: mais um download e um processo rodando; com público técnico, o modo só-MCP já funciona.

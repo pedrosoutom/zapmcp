@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "zapmcp",
   "display_name": "ZapMCP",
-  "version": "0.3.3",
+  "version": "0.3.5",
   "description": "Conversas do WhatsApp Desktop deste Mac para o Claude, lidas de uma cópia local. Só leitura.",
   "long_description": "Lê uma cópia do banco local do WhatsApp Desktop, monta um índice com busca e oferece tools para listar conversas, ler mensagens, buscar, abrir anexos (imagens e documentos) e transcrever áudios (os dos últimos 7 dias e os novos, automaticamente). A transcrição roda no próprio Mac (whisper.cpp, modelo de 0,6 GB baixado uma vez). Nada se conecta aos servidores do WhatsApp e a pasta do WhatsApp nunca é alterada. Os dados ficam em ~/Library/Application Support/zapmcp.",
   "author": {
@@ -14,10 +14,10 @@
   },
   "license": "MIT",
   "server": {
-    "type": "uv",
-    "entry_point": "src/zapmcp/server.py",
+    "type": "binary",
+    "entry_point": "bin/zapmcp",
     "mcp_config": {
-      "command": "uv",
+      "command": "${__dirname}/bin/zapmcp",
       "args": [
         "run",
         "--directory",

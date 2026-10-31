@@ -2,7 +2,7 @@
 
 Servidor MCP local (Python + FastMCP) que dá ao Claude acesso de leitura ao WhatsApp Desktop do Mac:
 mensagens, imagens, documentos e áudios transcritos no próprio Mac. Distribuído como extensão `.mcpb`
-do Claude Desktop. Repositório público, licença MIT: https://github.com/pedrosoutom/zapmcp. v0.3.3 concluída. **Direção: virar um app de desktop open-source** (fora da App
+do Claude Desktop. Repositório público, licença MIT: https://github.com/pedrosoutom/zapmcp. v0.3.5 concluída. **Direção: virar um app de desktop open-source** (fora da App
 Store; o usuário baixa ou roda o código aberto). **Próximo passo: discutir stack e abordagem desse app.**
 Melhorias registradas em [ROADMAP.md](ROADMAP.md).
 
@@ -14,7 +14,7 @@ que sabemos do banco do WhatsApp, decisões, medições, pendências e o ponto d
 ```bash
 uv run pytest                                    # testes (banco falso em tests/)
 uv run zapmcp sync | chats | export | transcribe | serve
-npx @anthropic-ai/mcpb pack . dist/ZapMCP.mcpb   # empacota a extensão
+make                                             # compila o lançador (se mudou) e empacota dist/ZapMCP.mcpb
 ```
 
 ## Regras
@@ -27,6 +27,9 @@ npx @anthropic-ai/mcpb pack . dist/ZapMCP.mcpb   # empacota a extensão
 - O servidor MCP usa FastMCP (decisão do autor).
 - Mudou a montagem das linhas? Subir `NORMALIZER_VERSION` em `src/zapmcp/whatsapp.py`.
 - Nada que o trabalhador de transcrição imprima pode chegar ao stdout do servidor.
+- A extensão roda pelo lançador `bin/zapmcp` (`launcher/zapmcp.c`), que fica com o Acesso Total ao
+  Disco no lugar do `uv`. Recompilá-lo muda a assinatura (ad hoc) e derruba a permissão: só mexer
+  nele com motivo e avisar o autor para liberar de novo.
 - Depois de mudar o código: testes, reempacotar o `.mcpb` e pedir ao autor para reinstalar.
 - Commits só quando o autor pedir. O repositório é público: nada de dados reais (nomes, números,
   mensagens, caminhos pessoais) em código, testes ou docs; nos testes, só dados fictícios.

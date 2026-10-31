@@ -1,7 +1,7 @@
 # Roadmap
 
-Melhorias registradas para fazer. Nada aqui está implementado ainda. Para o estado atual do projeto,
-ver [docs/CONTEXTO.md](docs/CONTEXTO.md).
+Melhorias registradas para fazer. Cada item diz o que já foi feito, se algo foi. Para o estado atual
+do projeto, ver [docs/CONTEXTO.md](docs/CONTEXTO.md).
 
 ## Direção: app de desktop open-source
 
@@ -15,33 +15,38 @@ dentro desse app.
 
 ## 1. Liberar o acesso uma vez só
 
-*Registrado em 2026-10-13.*
+*Registrado em 2026-10-13. Resolvido no modo só-MCP em 2026-10-31 (v0.3.5); falta a assinatura estável.*
 
-**Problema:** o computador e o Claude pedem aprovação várias vezes para o `uv` acessar o sistema e os
-arquivos (o banco do WhatsApp). O pedido volta a cada nova sessão ou execução.
+**Problema:** o macOS perguntava várias vezes se o `uv` podia acessar "dados de outros apps" (a pasta
+do WhatsApp), e o pedido voltava mesmo depois de permitido.
 
-**Experiência ideal:** autorizar uma única vez, na instalação, e não ser mais perguntado.
+**Causa (medida nos registros do macOS):**
+- O Claude Desktop inicia a extensão como processo **responsável** por si mesmo, e o macOS cobra a
+  permissão desse processo. No tipo `uv` do manifest, era o `uv`.
+- O "Permitir" desse pedido é temporário (de sessão) e vence sozinho. Cada servidor novo, o
+  trabalhador de transcrição e o `afconvert` também passam pela checagem.
+- O Acesso Total ao Disco evita o pedido, mas dado ao `uv` valeria para qualquer coisa que o Claude
+  Desktop rodasse por ele.
 
-**Para investigar:**
-- Hipótese: o macOS (TCC) amarra a permissão ao caminho do executável. Rodando via `uv run`/`uvx`, o
-  Python pode trocar de caminho a cada vez (cache ou ambiente temporário), e aí a permissão concedida
-  não vale para a próxima execução.
-- Saídas possíveis: rodar a partir de um executável com caminho fixo (`uv tool install`, venv fixo ou
-  um app assinado) e dar Acesso Total ao Disco a ele uma vez só. Outra opção é ler de uma cópia do
-  banco feita por um processo que já tenha permissão.
-- Documentar no README esse passo único de configuração e como confirmar que o acesso ficou liberado.
+**O que foi feito:**
+- Lançador em C (`launcher/zapmcp.c`, compilado em `bin/zapmcp` pelo `make`). A extensão passou a
+  ser do tipo `binary`: o Claude Desktop inicia o lançador, que inicia o `uv` e espera. O Acesso
+  Total ao Disco é dado só ao lançador, uma vez. Testado: sem pedidos, leitura direta.
+- O `Makefile` só recompila o lançador quando o fonte muda, porque cada binário novo perde a
+  permissão.
+- README com o passo único de liberação.
 
-**Pistas já observadas** (a confirmar):
-- São dois tipos de pedido diferentes: o do **macOS** (acesso a dados de outro app) e o do **Claude**
-  (aprovação de cada tool). Vale separar os dois na investigação.
-- O Claude Desktop inicia a extensão assim: `Claude.app/Contents/Helpers/disclaimer --pgroup --
-  /opt/homebrew/bin/uv run --directory …/Claude Extensions/local.mcpb.pedro-souto.zapmcp zapmcp serve`.
-  O `disclaimer` faz o processo filho responder pelas próprias permissões, então o macOS deve atribuir
-  o acesso ao `uv`, e não ao Claude. Isso explicaria o pedido aparecer em nome do `uv`.
-- O `uv` do Homebrew é assinado só localmente (ad hoc). Se o macOS identifica o executável pela
-  assinatura, cada atualização do `uv` pode contar como um programa novo e perder a permissão.
-- O trabalhador de transcrição é outro processo (`python -m zapmcp.cli transcribe`), que também lê a
-  pasta de mídias do WhatsApp; ele pode gerar pedidos próprios.
+**O que falta:**
+- **Assinatura estável do lançador.** Hoje é ad hoc: recompilar exige liberar de novo. Um
+  certificado de assinatura (gratuito para uso próprio, Developer ID para distribuir) mantém a
+  permissão entre versões.
+- **Distribuir o `.mcpb` pronto** (nas Releases): o lançador viria compilado por outra máquina, e não
+  sabemos se o Gatekeeper bloqueia um binário dentro de um `.mcpb` baixado. Precisaria ser universal
+  (Apple Silicon e Intel). Hoje cada pessoa compila com `make`.
+- No tipo `binary`, quem instala precisa ter o `uv` (antes era igual na prática: o Claude Desktop
+  usava o `uv` instalado).
+- No app de desktop, essa questão passa para o app assinado (ver a seção 9 do
+  [docs/CONTEXTO.md](docs/CONTEXTO.md)).
 
 ## 2. Dicionário de de-paras (como o Dictionary do Wispr Flow)
 
