@@ -7,6 +7,7 @@ import hashlib
 import logging
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 import unicodedata
@@ -58,12 +59,27 @@ def decode(audio: Path):
 
     with tempfile.TemporaryDirectory(prefix="zapmcp-") as tmp:
         wav = Path(tmp) / "audio.wav"
-        # afconvert vem com o macOS e decodifica Ogg Opus; no Windows vai precisar de outro caminho.
-        subprocess.run(["afconvert", "-f", "WAVE", "-d", "LEI16@16000", "-c", "1", str(audio), str(wav)],
-                       check=True, capture_output=True)
+        _to_wav(audio, wav)
         with wave.open(str(wav)) as w:
             frames = w.readframes(w.getnframes())
     return np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+
+
+def _to_wav(audio: Path, wav: Path) -> None:
+    """afconvert vem com o macOS e decodifica Ogg Opus. Quando ele recusa o arquivo, tenta o ffmpeg, se houver."""
+    try:
+        subprocess.run(["afconvert", "-f", "WAVE", "-d", "LEI16@16000", "-c", "1", str(audio), str(wav)],
+                       check=True, capture_output=True)
+    except (subprocess.CalledProcessError, FileNotFoundError) as first:
+        ffmpeg = shutil.which("ffmpeg")
+        if not ffmpeg:
+            raise
+        log.info("afconvert falhou em %s; tentando ffmpeg", audio.name)
+        try:
+            subprocess.run([ffmpeg, "-v", "error", "-y", "-i", str(audio), "-ar", "16000", "-ac", "1", "-f", "wav", str(wav)],
+                           check=True, capture_output=True)
+        except subprocess.CalledProcessError as second:
+            raise RuntimeError(f"afconvert e ffmpeg falharam: {second.stderr.decode(errors='replace').strip()}") from first
 
 
 class Transcriber:
