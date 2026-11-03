@@ -70,6 +70,24 @@ O comando mostra o arquivo `zapmcp` no Finder. Arraste-o para a lista em **Ajust
 Privacidade e Segurança > Acesso Total ao Disco** e, se a chave aparecer desligada, ligue. Às vezes o
 item não aparece na lista, mas a permissão vale mesmo assim.
 
+## Quem libera é você
+
+O Claude só lê uma conversa depois que você confirma no Mac. Funciona assim:
+
+- Você pede algo de uma conversa ("resume os áudios da Ana de ontem"). O Claude acha a conversa pelo
+  nome, sem confirmação, e aí aparece o pedido do sistema: **"Claude quer ler a conversa Ana (get_messages)"**,
+  com Touch ID (ou a senha do Mac, se não houver sensor).
+- Confirmou, aquela conversa fica liberada por 15 minutos (ajustável nos ajustes da extensão). Outras
+  conversas continuam fechadas até você confirmar cada uma.
+- Negou ou ignorou, o Claude recebe só "acesso fechado" e nada da conversa.
+- Buscas sem conversa definida só olham as conversas que você já liberou. Listar todas as conversas
+  também pede confirmação.
+- Cada chamada fica registrada em `~/Library/Application Support/zapmcp/logs/acesso.log` (quem, qual
+  ferramenta, qual conversa, liberado ou não), nunca o conteúdo.
+
+O pedido é feito por um programa pequeno (`bin/zapmcp-unlock`) que o `make` compila; nenhum comando
+de terminal abre o cadeado. O Claude Code e o Codex rodando no terminal passam pelo mesmo cadeado.
+
 ## Primeiro uso
 
 Peça algo ao Claude sobre suas conversas. Na primeira vez:
@@ -119,6 +137,8 @@ da extensão ("Avisar sobre versões novas").
 | O macOS continua perguntando se pode acessar "dados de outros apps" | Falta o Acesso Total ao Disco para o lançador, ou ele foi recompilado. Libere de novo. |
 | As ferramentas não respondem na primeira vez | Espere a instalação das dependências e reinicie a extensão em **Ajustes > Extensões**. |
 | Erro "não encontrei o uv" | Instale com `brew install uv`. |
+| O Claude diz que o acesso está fechado e nenhum pedido de Touch ID apareceu | O `bin/zapmcp-unlock` não foi compilado: rode `make` na pasta do ZapMCP e reinstale a extensão. |
+| O pedido de Touch ID aparece toda hora | Cada conversa é liberada por 15 minutos; aumente em **Minutos de liberação** nos ajustes da extensão. |
 
 Para usar no Claude Code ou pelo terminal, ajustar a transcrição e conhecer os limites, veja o
 [guia de uso](docs/USO.md).

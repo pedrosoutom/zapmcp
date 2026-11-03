@@ -93,10 +93,18 @@ WhatsApp (Group Container, protegido) ──cópia──▶ indexador ──▶ 
 | `launcher/zapmcp.c` | lançador em C: acha o `uv`, inicia-o como filho, repassa sinais e o código de saída; não escreve no stdout |
 | `Makefile` | compila o lançador (só quando o fonte muda; assinatura ad hoc) e empacota o `.mcpb` |
 | `cli.py`, `dates.py` | linha de comando; datas como `7d`, `hoje`, `AAAA-MM-DD` |
+| `cadeado.py` | janela de liberação por conversa, em memória; `pedir_no_mac` chama `bin/zapmcp-unlock` |
+| `acesso.py` | log de acesso (`logs/acesso.log`), uma linha por chamada, sem conteúdo |
+| `unlock/zapmcp-unlock.swift` | pedido de Touch ID/senha (LocalAuthentication); sai 0/1/2 |
 | `manifest.json`, `.mcpbignore` | extensão MCPB, tipo `binary`: o Claude Desktop roda o lançador, e o `uv` instala Python e dependências |
 
 Dados em `~/Library/Application Support/zapmcp/`: `index.db`, `transcripts.db`,
 `models/`, `logs/transcricao.log`, `transcricao.lock`, `atualizacao.json`, `snapshot/` (temporária).
+
+O cadeado (v0.4) é independente do Acesso Total ao Disco: o FDA é o macOS deixando o processo ler a
+pasta do WhatsApp; o cadeado é o dono deixando o agente ler uma conversa. O estado fica em memória do
+processo servidor; o modelo de ameaça cobre uso espontâneo pelo agente, não um agente malicioso
+rodando como o usuário com acesso ao código.
 
 Regras de implementação:
 - Mudou a forma de montar as linhas (autores, menções, textos)? **Subir `NORMALIZER_VERSION`** em

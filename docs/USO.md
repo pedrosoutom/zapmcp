@@ -72,6 +72,31 @@ claude mcp add --scope user ZapMCP -- /opt/homebrew/bin/uv --directory /caminho/
 
 O caminho absoluto do `uv` é necessário porque o Claude Desktop não herda o `PATH` do terminal.
 
+## Cadeado: cada conversa é liberada por você
+
+O servidor nasce trancado. Regras:
+
+| Chamada | O que acontece |
+|---|---|
+| `list_chats` com nome | Devolve id, nome, tipo e contagens das conversas parecidas, sem pedir nada. |
+| `list_chats` sem nome | Pede confirmação no Mac para listar todas. Libera só a listagem. |
+| `get_messages`, `search` com `chat` | Pede confirmação para **aquela** conversa, uma vez; depois, liberada por `ZAPMCP_UNLOCK_MINUTES` (padrão 15). |
+| `search` sem `chat` | Só nas conversas já liberadas nesta sessão; sem nenhuma, pede ao Claude que pergunte qual. |
+| `view_images`, `read_document`, `transcribe_audio` | A conversa de cada mensagem precisa estar liberada; se não está, pede. |
+
+- O pedido é o diálogo do sistema (`LAPolicy.deviceOwnerAuthentication`): Touch ID, ou a senha do Mac.
+  É mostrado por `bin/zapmcp-unlock` (`unlock/zapmcp-unlock.swift`, compilado pelo `make`). Sem o
+  binário, o servidor continua fechado e avisa para rodar `make`.
+- O estado fica só na memória de cada processo servidor: Claude Code, Codex e Claude Desktop pedem
+  cada um a sua liberação. Nada em disco; nenhum comando de terminal abre o cadeado.
+- `ZAPMCP_UNLOCK_MINUTES=0` desliga o cadeado (tudo liberado, como antes da v0.4).
+  `ZAPMCP_UNLOCK_WAIT_SECONDS` (padrão 60) é quanto a tool espera a sua resposta.
+  `ZAPMCP_UNLOCK_BIN` aponta para outro binário de liberação (testes).
+- A CLI (`zapmcp sync|chats|export|transcribe`) não passa pelo cadeado: é você no terminal.
+- Log de acesso em `~/Library/Application Support/zapmcp/logs/acesso.log`, uma linha por chamada:
+  `2026-11-03 19:40:01 | Claude Code | get_messages | chat=Ana since=ontem until=None | pedido, liberado`.
+  Nunca contém mensagem nem transcrição.
+
 ## Tools
 
 | Tool | Recebe | Devolve |
@@ -140,6 +165,7 @@ novas" nos ajustes da extensão).
 - `~/Library/Application Support/zapmcp/transcripts.db`: cache das transcrições, fila de pedidos e falhas
 - `~/Library/Application Support/zapmcp/models/`: o modelo de transcrição
 - `~/Library/Application Support/zapmcp/logs/transcricao.log`: log do processo de transcrição
+- `~/Library/Application Support/zapmcp/logs/acesso.log`: o que o Claude pediu e se foi liberado
 - `~/Library/Application Support/zapmcp/atualizacao.json`: última versão vista no GitHub e quando o
   aviso foi mostrado
 
