@@ -119,6 +119,9 @@ do Mac.
   as transcrições sobrevivem quando o índice é refeito.
 - Limpeza automática das falhas conhecidas do Whisper: frase repetida em sequência, texto em outro
   alfabeto e as "legendas" que ele inventa em áudio silencioso.
+- `ZAPMCP_MODEL=/caminho/para/ggml-xxx.bin` usa um modelo do whisper.cpp que já está no Mac (por
+  exemplo, o `ggml-large-v3-turbo.bin` que o [Handy](https://handy.computer) guarda em
+  `~/Library/Application Support/com.pais.handy/models/`), sem baixar nem conferir nada.
 - Velocidade no M1: cerca de 8× o tempo real (1 minuto de áudio em ~8 s). Enquanto transcreve, a GPU
   fica perto de 100%; processador (~6% de um núcleo) e memória (~300 MB) ficam baixos.
 
