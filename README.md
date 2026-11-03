@@ -120,8 +120,8 @@ da extensão ("Avisar sobre versões novas").
 | As ferramentas não respondem na primeira vez | Espere a instalação das dependências e reinicie a extensão em **Ajustes > Extensões**. |
 | Erro "não encontrei o uv" | Instale com `brew install uv`. |
 
-Para usar no Claude Code ou pelo terminal, ajustar a transcrição e conhecer os limites, veja o
-[guia de uso](docs/USO.md).
+Para usar no Claude Code ou no Codex (registro global, vale em qualquer pasta), pelo terminal,
+ajustar a transcrição e conhecer os limites, veja o [guia de uso](docs/USO.md).
 
 ## Avisos
 

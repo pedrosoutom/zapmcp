@@ -54,11 +54,22 @@ A extensão é do tipo `binary`: o Claude Desktop inicia o lançador `bin/zapmcp
 O lançador existe por causa da permissão: no tipo `uv`, o Claude Desktop inicia o `uv` direto e é o
 `uv` que precisa do Acesso Total ao Disco, valendo para qualquer coisa que rode por ele.
 
-**Claude Code**
+**Claude Code** (`--scope user` deixa o servidor disponível em qualquer pasta)
 
 ```bash
 claude mcp add --scope user ZapMCP -- /opt/homebrew/bin/uv --directory /caminho/para/zapmcp run zapmcp serve
 ```
+
+**Codex** (registro global, em `~/.codex/config.toml`)
+
+```bash
+codex mcp add ZapMCP -- /opt/homebrew/bin/uv --directory /caminho/para/zapmcp run zapmcp serve
+```
+
+Nos dois, as opções de transcrição entram como variáveis de ambiente: `-e CHAVE=valor` no Claude
+Code, `--env CHAVE=valor` no Codex (por exemplo, `ZAPMCP_TRANSCRIBE=0`). Claude Code e Codex abertos
+ao mesmo tempo compartilham o índice e o cache de transcrições; só um processo de transcrição roda
+por vez.
 
 **Claude Desktop, editando a configuração**: em `~/Library/Application Support/Claude/claude_desktop_config.json`, dentro de
 `"mcpServers"`:
@@ -108,7 +119,7 @@ do Mac.
   grande, isso pode levar horas com a GPU ocupada; por isso fica como escolha do usuário.
 - Enquanto o servidor MCP está aberto, um processo separado cuida da fila, dos áudios mais novos para
   os mais antigos. Ele sai sozinho quando o servidor fecha, e só um roda por vez, mesmo com o ZapMCP
-  aberto no Claude Desktop e no Claude Code.
+  aberto no Claude Desktop, no Claude Code e no Codex.
 - Com o Mac na bateria, só os áudios pedidos pelo Claude são transcritos
   (`ZAPMCP_TRANSCRIBE_ON_BATTERY=1` muda isso). `ZAPMCP_TRANSCRIBE=0` desliga a transcrição.
   No Claude Desktop, essas opções aparecem nos ajustes da extensão.
