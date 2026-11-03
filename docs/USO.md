@@ -85,7 +85,7 @@ O servidor nasce trancado. Regras:
 | `view_images`, `read_document`, `transcribe_audio` | A conversa de cada mensagem precisa estar liberada; se não está, pede. |
 
 - O pedido é o diálogo do sistema (`LAPolicy.deviceOwnerAuthentication`): Touch ID, ou a senha do Mac.
-  É mostrado por `bin/zapmcp-unlock` (`unlock/zapmcp-unlock.swift`, compilado pelo `make`). Sem o
+  É mostrado por `bin/ZapMCP.app` (`unlock/zapmcp-unlock.swift`, compilado pelo `make`). Sem o
   binário, o servidor continua fechado e avisa para rodar `make`.
 - Negou ou não respondeu: vale para quem já esperava e por 5 segundos; dentro de uma mesma chamada, cada conversa é pedida uma vez (vários anexos da mesma conversa = um pedido). A janela conta em relógio de parede: dormir o Mac não a estica.
 - O estado fica só na memória de cada processo servidor: Claude Code, Codex e Claude Desktop pedem

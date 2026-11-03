@@ -81,6 +81,7 @@ def unlock_wait_seconds() -> int:
 
 
 def unlock_binary() -> Path:
-    """O programa que mostra o pedido de Touch ID (bin/zapmcp-unlock, compilado pelo make)."""
-    default = Path(__file__).resolve().parents[2] / "bin" / "zapmcp-unlock"
+    """O programa que mostra o pedido de Touch ID: fica dentro de bin/ZapMCP.app (montado pelo make), e é o
+    bundle que dá nome e ícone ao diálogo do sistema."""
+    default = Path(__file__).resolve().parents[2] / "bin" / "ZapMCP.app" / "Contents" / "MacOS" / "zapmcp-unlock"
     return Path(os.environ.get("ZAPMCP_UNLOCK_BIN") or default).expanduser()

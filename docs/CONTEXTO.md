@@ -93,9 +93,9 @@ WhatsApp (Group Container, protegido) ──cópia──▶ indexador ──▶ 
 | `launcher/zapmcp.c` | lançador em C: acha o `uv`, inicia-o como filho, repassa sinais e o código de saída; não escreve no stdout |
 | `Makefile` | compila o lançador (só quando o fonte muda; assinatura ad hoc) e empacota o `.mcpb` |
 | `cli.py`, `dates.py` | linha de comando; datas como `7d`, `hoje`, `AAAA-MM-DD` |
-| `cadeado.py` | janela de liberação por conversa, em memória; `pedir_no_mac` chama `bin/zapmcp-unlock` |
+| `cadeado.py` | janela de liberação por conversa, em memória; `pedir_no_mac` chama `bin/ZapMCP.app` |
 | `acesso.py` | log de acesso (`logs/acesso.log`), uma linha por chamada, sem conteúdo |
-| `unlock/zapmcp-unlock.swift` | pedido de Touch ID/senha (LocalAuthentication); sai 0/1/2 |
+| `unlock/` | pedido de Touch ID/senha: `zapmcp-unlock.swift` (LocalAuthentication, sai 0/1/2), `Info.plist` e `icone.py` que viram `bin/ZapMCP.app` no make |
 | `manifest.json`, `.mcpbignore` | extensão MCPB, tipo `binary`: o Claude Desktop roda o lançador, e o `uv` instala Python e dependências |
 
 Dados em `~/Library/Application Support/zapmcp/`: `index.db`, `transcripts.db`,

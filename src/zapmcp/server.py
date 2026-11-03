@@ -77,6 +77,27 @@ def _agente(ctx: Context) -> str:
         return "desconhecido"
 
 
+# Como cada cliente MCP se apresenta → como aparece no pedido de Touch ID.
+_NOMES = {
+    "claude-code": "Claude Code",
+    "claude code": "Claude Code",
+    "codex": "Codex",
+    "codex-cli": "Codex",
+    "codex cli": "Codex",
+    "claude-desktop": "Claude Desktop",
+    "claude desktop": "Claude Desktop",
+    "claude-ai": "Claude Desktop",
+    "claude": "Claude Desktop",
+}
+
+
+def _nome_amigavel(nome: str) -> str:
+    nome = (nome or "").strip()
+    if not nome or nome == "desconhecido":
+        return "um agente"
+    return _NOMES.get(nome.lower(), nome)
+
+
 class _Chamada:
     """Uma chamada de tool: passa cada conversa pelo cadeado uma vez e grava uma linha no log ao fim."""
 
@@ -96,10 +117,12 @@ class _Chamada:
 
     def conversa(self, chat: store.ChatInfo) -> None:
         tipo = "grupo" if chat.is_group else "individual"
-        self._passar(str(chat.id), f'{self.agente} quer ler a conversa "{chat.name}" ({tipo}) ({self.tool}).')
+        minutos = config.unlock_minutes()
+        prazo = f"{minutos:g} min" if minutos < 60 else f"{minutos / 60:g} h"
+        self._passar(str(chat.id), f'{_nome_amigavel(self.agente)} quer ler "{chat.name}" ({tipo}) no WhatsApp, por {prazo}.')
 
     def listagem(self) -> None:
-        self._passar("*", f"{self.agente} quer listar todas as conversas.")
+        self._passar("*", f"{_nome_amigavel(self.agente)} quer ver a lista de todas as conversas do WhatsApp.")
 
     def __enter__(self):
         return self

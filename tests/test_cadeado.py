@@ -117,14 +117,14 @@ def test_list_chats_com_nome_nao_pede_e_sem_nome_pede(wa_dir, monkeypatch):
     assert not r.is_error and "Projeto X" in r.content[0].text and pedidos == []
     r = _call("list_chats", {})
     assert r.is_error and r.content[0].text == server.cadeado.Cadeado.MENSAGEM_TRANCADO
-    assert pedidos == ["mcp quer listar todas as conversas."]
+    assert pedidos == ["mcp quer ver a lista de todas as conversas do WhatsApp."]
 
 
 def test_get_messages_pede_a_conversa_e_trancada_nao_devolve(wa_dir, monkeypatch):
     server, pedidos = _armar(monkeypatch, False)
     r = _call("get_messages", {"chat": "projeto x"})
     assert r.is_error and r.content[0].text == server.cadeado.Cadeado.MENSAGEM_TRANCADO
-    assert pedidos == ['mcp quer ler a conversa "Projeto X 🚀" (grupo) (get_messages).']
+    assert pedidos == ['mcp quer ler "Projeto X 🚀" (grupo) no WhatsApp, por 15 min.']
 
 
 def test_confirmou_libera_so_aquela_conversa(wa_dir, monkeypatch):
@@ -152,7 +152,7 @@ def test_anexos_exigem_a_conversa_liberada(wa_dir, monkeypatch):
     server, pedidos = _armar(monkeypatch, False)
     r = _call("view_images", {"ids": [4]})
     assert len(r.content) == 1 and r.content[0].text == "#4: " + server.cadeado.Cadeado.MENSAGEM_TRANCADO
-    assert pedidos[-1].endswith("(view_images).")
+    assert pedidos[-1].startswith('mcp quer ler "Projeto X 🚀"')
     r = _call("read_document", {"id": 20})
     assert r.is_error and r.content[0].text == "#20: " + server.cadeado.Cadeado.MENSAGEM_TRANCADO
     r = _call("transcribe_audio", {"ids": [3]})
@@ -313,8 +313,8 @@ def test_dialogo_mostra_o_tipo_da_conversa(wa_dir, monkeypatch):
     _call("get_messages", {"chat": "1"})
     _call("get_messages", {"chat": "maria"})
     assert pedidos == [
-        'mcp quer ler a conversa "Projeto X 🚀" (grupo) (get_messages).',
-        'mcp quer ler a conversa "Maria Souza" (individual) (get_messages).',
+        'mcp quer ler "Projeto X 🚀" (grupo) no WhatsApp, por 15 min.',
+        'mcp quer ler "Maria Souza" (individual) no WhatsApp, por 15 min.',
     ]
 
 
@@ -329,3 +329,34 @@ def test_textos_ao_agente_coerentes():
     query = asyncio.run(schema())["list_chats"]["properties"]["query"]["description"]
     assert "Vazio lista as mais recentes" not in query and "confirmação" in query
     assert "confirma" in cadeado.Cadeado.MENSAGEM_TRANCADO
+
+
+# --- diálogo: nome limpo e mensagem curta ---
+
+
+def test_nome_amigavel_do_agente():
+    from zapmcp.server import _nome_amigavel
+
+    assert _nome_amigavel("claude-code") == "Claude Code"
+    assert _nome_amigavel("Claude Code") == "Claude Code"
+    assert _nome_amigavel("codex") == "Codex"
+    assert _nome_amigavel("codex-cli") == "Codex"
+    assert _nome_amigavel("claude-desktop") == "Claude Desktop"
+    assert _nome_amigavel("claude-ai") == "Claude Desktop"
+    assert _nome_amigavel("mcp") == "mcp"
+    assert _nome_amigavel("") == "um agente"
+
+
+def test_mensagem_do_dialogo_curta(wa_dir, monkeypatch):
+    server, pedidos = _armar(monkeypatch, False)
+    _call("get_messages", {"chat": "1"})
+    _call("list_chats", {})
+    assert pedidos == [
+        'mcp quer ler "Projeto X 🚀" (grupo) no WhatsApp, por 15 min.',
+        "mcp quer ver a lista de todas as conversas do WhatsApp.",
+    ]
+
+
+def test_binario_padrao_fica_dentro_do_app(monkeypatch):
+    monkeypatch.delenv("ZAPMCP_UNLOCK_BIN", raising=False)
+    assert config.unlock_binary().as_posix().endswith("bin/ZapMCP.app/Contents/MacOS/zapmcp-unlock")

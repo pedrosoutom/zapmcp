@@ -75,8 +75,8 @@ item não aparece na lista, mas a permissão vale mesmo assim.
 O Claude só lê uma conversa depois que você confirma no Mac. Funciona assim:
 
 - Você pede algo de uma conversa ("resume os áudios da Ana de ontem"). O Claude acha a conversa pelo
-  nome, sem confirmação, e aí aparece o pedido do sistema: **"Claude quer ler a conversa Ana (get_messages)"**,
-  com Touch ID (ou a senha do Mac, se não houver sensor).
+  nome, sem confirmação, e aí aparece o pedido do sistema,
+  com Touch ID (ou a senha do Mac, se não houver sensor). O texto é curto: **"Claude Code quer ler "Ana" (individual) no WhatsApp, por 15 min."**
 - Confirmou, aquela conversa fica liberada por 15 minutos (ajustável nos ajustes da extensão). Outras
   conversas continuam fechadas até você confirmar cada uma.
 - Negou ou ignorou, o Claude recebe só "acesso fechado" e nada da conversa.
@@ -85,7 +85,7 @@ O Claude só lê uma conversa depois que você confirma no Mac. Funciona assim:
 - Cada chamada fica registrada em `~/Library/Application Support/zapmcp/logs/acesso.log` (quem, qual
   ferramenta, qual conversa, liberado ou não), nunca o conteúdo.
 
-O pedido é feito por um programa pequeno (`bin/zapmcp-unlock`) que o `make` compila; nenhum comando
+O pedido aparece com o nome e o ícone do ZapMCP: é um app mínimo (`bin/ZapMCP.app`, só o diálogo) que o `make` monta; nenhum comando
 de terminal abre o cadeado. O Claude Code e o Codex rodando no terminal passam pelo mesmo cadeado.
 
 ## Primeiro uso
@@ -137,7 +137,7 @@ da extensão ("Avisar sobre versões novas").
 | O macOS continua perguntando se pode acessar "dados de outros apps" | Falta o Acesso Total ao Disco para o lançador, ou ele foi recompilado. Libere de novo. |
 | As ferramentas não respondem na primeira vez | Espere a instalação das dependências e reinicie a extensão em **Ajustes > Extensões**. |
 | Erro "não encontrei o uv" | Instale com `brew install uv`. |
-| O Claude diz que o acesso está fechado e nenhum pedido de Touch ID apareceu | O `bin/zapmcp-unlock` não foi compilado: rode `make` na pasta do ZapMCP e reinstale a extensão. |
+| O Claude diz que o acesso está fechado e nenhum pedido de Touch ID apareceu | O `bin/ZapMCP.app` não foi compilado: rode `make` na pasta do ZapMCP e reinstale a extensão. |
 | O pedido de Touch ID aparece toda hora | Cada conversa é liberada por 15 minutos; aumente em **Minutos de liberação** nos ajustes da extensão. |
 
 Para usar no Claude Code ou pelo terminal, ajustar a transcrição e conhecer os limites, veja o
