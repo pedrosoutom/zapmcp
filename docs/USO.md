@@ -78,8 +78,8 @@ O servidor nasce trancado. Regras:
 
 | Chamada | O que acontece |
 |---|---|
-| `list_chats` com nome | Devolve id, nome, tipo e contagens das conversas parecidas, sem pedir nada. |
-| `list_chats` sem nome | Pede confirmação no Mac para listar todas. Libera só a listagem. |
+| `list_chats` com nome (3+ letras) | Devolve id, nome, tipo e contagens das conversas parecidas, sem pedir nada. |
+| `list_chats` sem nome, ou com menos de 3 letras | Pede confirmação no Mac para listar todas. Libera só a listagem. |
 | `get_messages`, `search` com `chat` | Pede confirmação para **aquela** conversa, uma vez; depois, liberada por `ZAPMCP_UNLOCK_MINUTES` (padrão 15). |
 | `search` sem `chat` | Só nas conversas já liberadas nesta sessão; sem nenhuma, pede ao Claude que pergunte qual. |
 | `view_images`, `read_document`, `transcribe_audio` | A conversa de cada mensagem precisa estar liberada; se não está, pede. |
@@ -87,6 +87,7 @@ O servidor nasce trancado. Regras:
 - O pedido é o diálogo do sistema (`LAPolicy.deviceOwnerAuthentication`): Touch ID, ou a senha do Mac.
   É mostrado por `bin/zapmcp-unlock` (`unlock/zapmcp-unlock.swift`, compilado pelo `make`). Sem o
   binário, o servidor continua fechado e avisa para rodar `make`.
+- Negou ou não respondeu: vale para quem já esperava e por 5 segundos; dentro de uma mesma chamada, cada conversa é pedida uma vez (vários anexos da mesma conversa = um pedido). A janela conta em relógio de parede: dormir o Mac não a estica.
 - O estado fica só na memória de cada processo servidor: Claude Code, Codex e Claude Desktop pedem
   cada um a sua liberação. Nada em disco; nenhum comando de terminal abre o cadeado.
 - `ZAPMCP_UNLOCK_MINUTES=0` desliga o cadeado (tudo liberado, como antes da v0.4).
@@ -95,6 +96,7 @@ O servidor nasce trancado. Regras:
 - A CLI (`zapmcp sync|chats|export|transcribe`) não passa pelo cadeado: é você no terminal.
 - Log de acesso em `~/Library/Application Support/zapmcp/logs/acesso.log`, uma linha por chamada:
   `2026-11-03 19:40:01 | Claude Code | get_messages | chat=Ana since=ontem until=None | pedido, liberado`.
+  Resultados: `livre` (list_chats por nome), `liberado`, `trancado`, `liberado 2, trancado 1` (vários ids), com `pedido, ` na frente quando o diálogo abriu.
   Nunca contém mensagem nem transcrição.
 
 ## Tools

@@ -65,19 +65,19 @@ def transcribe_archived_groups() -> bool:
     return _flag("ZAPMCP_TRANSCRIBE_ARCHIVED", False)
 
 
-def _number(name: str, default: int) -> int:
+def _number(name: str, default: float) -> float:
     value = os.environ.get(name, "").strip()
-    return default if not value or value.startswith("${") else int(float(value))
+    return default if not value or value.startswith("${") else float(value)
 
 
-def unlock_minutes() -> int:
+def unlock_minutes() -> float:
     """Por quantos minutos uma conversa fica liberada depois que o dono confirma no Mac. 0 desliga o cadeado."""
     return _number("ZAPMCP_UNLOCK_MINUTES", 15)
 
 
 def unlock_wait_seconds() -> int:
     """Quanto uma tool espera o dono responder ao pedido de Touch ID."""
-    return _number("ZAPMCP_UNLOCK_WAIT_SECONDS", 60)
+    return int(_number("ZAPMCP_UNLOCK_WAIT_SECONDS", 60))
 
 
 def unlock_binary() -> Path:

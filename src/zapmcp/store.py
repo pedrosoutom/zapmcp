@@ -194,15 +194,21 @@ def chats(
     return found[:limit] if limit else found
 
 
+def chat_by_id(conn: sqlite3.Connection, chat_id: int) -> ChatInfo | None:
+    """Uma conversa pelo id exato, ou None."""
+    row = conn.execute(_CHATS_SQL + " WHERE c.id = ?", (chat_id,)).fetchone()
+    if not row:
+        return None
+    return ChatInfo(row["id"], row["name"], bool(row["is_group"]), row["last_ts"], row["n"], 1.0, bool(row["archived"]))
+
+
 def resolve_chat(conn: sqlite3.Connection, ref: str) -> tuple[ChatInfo, list[ChatInfo]]:
     """Acha uma conversa por id ou nome aproximado. Devolve a escolhida e outras quase tão parecidas."""
     ref = ref.strip()
     if ref.isdigit():
-        row = conn.execute(_CHATS_SQL + " WHERE c.id = ?", (int(ref),)).fetchone()
-        if row:
-            return ChatInfo(
-                row["id"], row["name"], bool(row["is_group"]), row["last_ts"], row["n"], 1.0, bool(row["archived"])
-            ), []
+        found = chat_by_id(conn, int(ref))
+        if found:
+            return found, []
     ranked = chats(conn, query=ref, limit=5)
     if not ranked:
         raise LookupError(f'Nenhuma conversa com nome parecido com "{ref}". Use list_chats para ver os nomes.')

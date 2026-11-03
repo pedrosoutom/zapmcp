@@ -8,3 +8,12 @@ export/
 dist/
 *.mcpb
 .DS_Store
+unlock/
+launcher/
+local/
+docs/
+.superpowers/
+PR_BODY*.md
+ROADMAP.md
+CLAUDE.md
+Makefile

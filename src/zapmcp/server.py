@@ -25,8 +25,9 @@ log = logging.getLogger("zapmcp")
 INSTRUCTIONS = """\
 Acesso somente leitura às conversas do WhatsApp deste Mac, a partir de um índice local.
 
-- Para uma conversa específica: list_chats para achar o id (aceita nome aproximado), depois get_messages com o período.
-- Para um assunto sem conversa definida: search.
+- Para uma conversa específica: list_chats com o nome para achar o id, depois get_messages com o período.
+- Para um assunto: search com chat (a conversa que o usuário citou). Sem chat, a busca só cobre as
+  conversas que o usuário já liberou nesta sessão.
 - Cada mensagem vem numa linha: [AAAA-MM-DD HH:MM] Autor: texto, no horário local do Mac.
 - "Você" é o dono deste WhatsApp. "~ Nome" é o nome de perfil de alguém que não está na agenda.
 - Menções aparecem como @Nome (agenda) ou @~Nome (nome de perfil); @ seguido de número é alguém sem nome conhecido.
@@ -56,11 +57,13 @@ When = Annotated[str | None, Field(description=f"Data ou período relativo. {DAT
 
 _cadeado = cadeado.Cadeado(cadeado.pedir_no_mac, config.unlock_minutes(), config.unlock_wait_seconds())
 
+# Menos que isso no nome, list_chats pede confirmação: senão "a" ou "*" listariam tudo.
+MIN_NOME = 3
+
 
 def reset_cadeado() -> None:
     """Recria o cadeado lendo o ambiente de novo (testes e reconfiguração)."""
     global _cadeado
-    cadeado.ULTIMO_ERRO = None
     _cadeado = cadeado.Cadeado(cadeado.pedir_no_mac, config.unlock_minutes(), config.unlock_wait_seconds())
 
 
@@ -74,39 +77,53 @@ def _agente(ctx: Context) -> str:
         return "desconhecido"
 
 
-def _trancado() -> ToolError:
-    sem_binario = cadeado.ULTIMO_ERRO == "sem_binario"
-    return ToolError(cadeado.Cadeado.MENSAGEM_SEM_BINARIO if sem_binario else cadeado.Cadeado.MENSAGEM_TRANCADO)
+class _Chamada:
+    """Uma chamada de tool: passa cada conversa pelo cadeado uma vez e grava uma linha no log ao fim."""
 
+    def __init__(self, ctx: Context, tool: str, resumo: str) -> None:
+        self.agente, self.tool, self.resumo = _agente(ctx), tool, resumo
+        self._visto: dict[str, tuple[bool, bool]] = {}  # chave → (liberada, pediu)
+        self.forcar: str | None = None  # resultado fixo para o log (ex.: busca sem conversa liberada)
 
-def _passar(ctx: Context, tool: str, chave: str, mensagem: str, resumo: str) -> None:
-    """Passa pelo cadeado e registra no log de acesso; trancado vira ToolError."""
-    agente = _agente(ctx)
-    pedido = not _cadeado.aberto(chave)
-    ok = _cadeado.liberar(chave, mensagem)
-    resultado = ("pedido, " if pedido else "") + ("liberado" if ok else "trancado")
-    acesso.registrar(agente, tool, resumo, resultado)
-    if not ok:
-        raise _trancado()
+    def _passar(self, chave: str, mensagem: str) -> bool:
+        if chave not in self._visto:
+            self._visto[chave] = _cadeado.liberar(chave, mensagem)
+        ok, _ = self._visto[chave]
+        if not ok:
+            sem_binario = _cadeado.erro.get(chave) == "sem_binario"
+            raise ToolError(cadeado.Cadeado.MENSAGEM_SEM_BINARIO if sem_binario else cadeado.Cadeado.MENSAGEM_TRANCADO)
+        return True
 
+    def conversa(self, chat: store.ChatInfo) -> None:
+        tipo = "grupo" if chat.is_group else "individual"
+        self._passar(str(chat.id), f'{self.agente} quer ler a conversa "{chat.name}" ({tipo}) ({self.tool}).')
 
-def _liberar_conversa(ctx: Context, tool: str, chat: store.ChatInfo, resumo: str | None = None) -> None:
-    mensagem = f'{_agente(ctx)} quer ler a conversa "{chat.name}" ({tool}).'
-    _passar(ctx, tool, str(chat.id), mensagem, resumo if resumo is not None else f"chat={chat.name}")
+    def listagem(self) -> None:
+        self._passar("*", f"{self.agente} quer listar todas as conversas.")
 
+    def __enter__(self):
+        return self
 
-def _liberar_listagem(ctx: Context) -> None:
-    _passar(ctx, "list_chats", "*", f"{_agente(ctx)} quer listar todas as conversas.", "todas")
+    def __exit__(self, *_exc) -> bool:
+        if self.forcar:
+            resultado = self.forcar
+        elif not self._visto:
+            resultado = "livre"
+        else:
+            oks = [ok for ok, _ in self._visto.values()]
+            estado = "liberado" if all(oks) else "trancado" if not any(oks) else f"liberado {oks.count(True)}, trancado {oks.count(False)}"
+            resultado = ("pedido, " if any(p for _, p in self._visto.values()) else "") + estado
+        acesso.registrar(self.agente, self.tool, self.resumo, resultado)
+        return False
 
 
 def _conversas_liberadas(conn) -> list[store.ChatInfo]:
     found = []
     for chave in sorted(_cadeado.liberados()):
         if chave.isdigit():
-            try:
-                found.append(store.resolve_chat(conn, chave)[0])
-            except LookupError:
-                pass
+            chat = store.chat_by_id(conn, int(chave))
+            if chat:
+                found.append(chat)
     return found
 
 
@@ -162,7 +179,7 @@ def _chat(conn, ref: str) -> tuple[store.ChatInfo, list[store.ChatInfo]]:
 
 @mcp.tool(annotations=READ_ONLY)
 def list_chats(
-    query: Annotated[str, Field(description="Parte do nome da conversa; aceita nome aproximado. Vazio lista as mais recentes.")] = "",
+    query: Annotated[str, Field(description="Parte do nome da conversa (3+ letras); aceita nome aproximado. Vazio lista todas, com confirmação do usuário.")] = "",
     active_since: When = None,
     limit: Annotated[int, Field(ge=1, le=200)] = 20,
     ctx: Context = None,
@@ -172,14 +189,15 @@ def list_chats(
     Com `query`, vêm as de nome mais parecido, sem pedir confirmação ao usuário. Sem `query` (todas as
     conversas), o usuário precisa confirmar no Mac.
     """
-    if not query.strip():
-        _liberar_listagem(ctx)
-    note = _refresh()
-    with _index() as conn:
-        found = store.chats(conn, query=query, active_since=_when(active_since), limit=limit)
-    if not found:
-        return note + "Nenhuma conversa encontrada."
-    return note + "\n".join(fmt.chat_row(c) for c in found)
+    with _Chamada(ctx, "list_chats", f"query={query}") as chamada:
+        if len(store.search_key(query)) < MIN_NOME:
+            chamada.listagem()
+        note = _refresh()
+        with _index() as conn:
+            found = store.chats(conn, query=query, active_since=_when(active_since), limit=limit)
+        if not found:
+            return note + "Nenhuma conversa encontrada."
+        return note + "\n".join(fmt.chat_row(c) for c in found)
 
 
 @mcp.tool(annotations=READ_ONLY)
@@ -194,14 +212,16 @@ def get_messages(
 
     O usuário confirma no Mac a primeira leitura de cada conversa.
     """
-    note = _refresh()
-    start = _when(since) or 0
-    end = _when(until, end_of_day=True)
-    with _index() as conn:
-        found, similar = _chat(conn, chat)
-        _liberar_conversa(ctx, "get_messages", found, f"chat={found.name} since={since} until={until}")
-        rows = store.messages_in(conn, found.id, start, end)
-    return note + fmt.conversation(found, rows, start, end, limit, similar)
+    with _Chamada(ctx, "get_messages", f"chat={chat} since={since} until={until}") as chamada:
+        note = _refresh()
+        start = _when(since) or 0
+        end = _when(until, end_of_day=True)
+        with _index() as conn:
+            found, similar = _chat(conn, chat)
+            chamada.resumo = f"chat={found.name} since={since} until={until}"
+            chamada.conversa(found)
+            rows = store.messages_in(conn, found.id, start, end)
+        return note + fmt.conversation(found, rows, start, end, limit, similar)
 
 
 @mcp.tool(annotations=READ_ONLY)
@@ -222,33 +242,42 @@ def search(
     só as conversas que ele já liberou nesta sessão. Encontra palavras, não significado: para "prazo",
     tente também "entrega", "sexta" etc.
     """
-    note = _refresh()
-    with _index() as conn:
-        chat_id = only = None
-        if chat:
-            found = _chat(conn, chat)[0]
-            _liberar_conversa(ctx, "search", found, f"query={query} chat={found.name}")
-            chat_id = found.id
-        elif not _cadeado.desligado:
-            liberadas = _conversas_liberadas(conn)
-            if not liberadas:
-                raise ToolError(cadeado.Cadeado.MENSAGEM_SEM_LIBERADAS)
-            only = [c.id for c in liberadas]
-            note += "Busca nas conversas liberadas: " + ", ".join(c.name for c in liberadas) + ".\n\n"
-        try:
-            hits = store.search(conn, query, chat_id, _when(since), _when(until, end_of_day=True), limit, only)
-        except ValueError as e:
-            raise ToolError(str(e)) from e
-        results = [(hit, *store.neighbors(conn, hit, 2)) for hit in hits]
-    return note + fmt.search_results(query, results)
+    with _Chamada(ctx, "search", f"query={query} chat={chat}") as chamada:
+        note = _refresh()
+        with _index() as conn:
+            chat_id = only = None
+            if chat:
+                found = _chat(conn, chat)[0]
+                chamada.resumo = f"query={query} chat={found.name}"
+                chamada.conversa(found)
+                chat_id = found.id
+            elif not _cadeado.desligado:
+                liberadas = _conversas_liberadas(conn)
+                chamada.resumo = f"query={query} chat=liberadas({', '.join(c.name for c in liberadas)})"
+                if not liberadas:
+                    chamada.forcar = "trancado"
+                    raise ToolError(cadeado.Cadeado.MENSAGEM_SEM_LIBERADAS)
+                for c in liberadas:
+                    chamada.conversa(c)  # já liberadas: só registra
+                only = [c.id for c in liberadas]
+                note += "Busca nas conversas liberadas: " + ", ".join(c.name for c in liberadas) + ".\n\n"
+            try:
+                hits = store.search(conn, query, chat_id, _when(since), _when(until, end_of_day=True), limit, only)
+            except ValueError as e:
+                raise ToolError(str(e)) from e
+            results = [(hit, *store.neighbors(conn, hit, 2)) for hit in hits]
+        return note + fmt.search_results(query, results)
 
 
-def _attachment(conn, ctx: Context, tool: str, message_id: int, kind: str):
+def _attachment(conn, chamada: _Chamada, message_id: int, kind: str):
     """A mensagem e o arquivo de um anexo, ou um erro que diz ao Claude o que fazer."""
     msg = store.message(conn, message_id)
     if msg is None:
         raise ToolError(f"#{message_id}: não encontrei essa mensagem.")
-    _liberar_conversa(ctx, tool, _conversa_da_mensagem(msg), f"id={message_id} chat={msg['chat_name']}")
+    try:
+        chamada.conversa(_conversa_da_mensagem(msg))
+    except ToolError as e:
+        raise ToolError(f"#{message_id}: {e}") from None
     if msg["kind"] != kind:
         other = {"imagem": "view_images", "documento": "read_document"}.get(msg["kind"])
         hint = f" Use {other}." if other else ""
@@ -281,10 +310,10 @@ def view_images(
     O usuário confirma no Mac a primeira leitura de cada conversa.
     """
     content: list = []
-    with _index() as conn:
+    with _Chamada(ctx, "view_images", f"ids={ids}") as chamada, _index() as conn:
         for message_id in ids:
             try:
-                msg, path = _attachment(conn, ctx, "view_images", message_id, "imagem")
+                msg, path = _attachment(conn, chamada, message_id, "imagem")
                 picture = media.image(path)
             except ToolError as e:
                 content.append(str(e))
@@ -308,8 +337,8 @@ def read_document(
     O texto vem em partes de até ~15 mil caracteres. Páginas escaneadas de PDF vêm como imagem.
     O usuário confirma no Mac a primeira leitura de cada conversa.
     """
-    with _index() as conn:
-        msg, path = _attachment(conn, ctx, "read_document", id, "documento")
+    with _Chamada(ctx, "read_document", f"id={id} part={part}") as chamada, _index() as conn:
+        msg, path = _attachment(conn, chamada, id, "documento")
     name = msg["text"] or path.name
     if path.suffix.lower() in media.IMAGE_SUFFIXES:
         return _blocks([f"# {name} · imagem\n{_origin(msg)}", media.image(path)])
@@ -358,16 +387,17 @@ def transcribe_audio(
     O usuário confirma no Mac a primeira leitura de cada conversa.
     """
     problems, wanted, trancados = [], [], set()
-    with _index() as conn:
+    chamada = _Chamada(ctx, "transcribe_audio", f"ids={ids}")
+    with chamada, _index() as conn:
         for message_id in ids:
             msg = store.message(conn, message_id)
             if msg is None:
                 problems.append(f"#{message_id}: não encontrei essa mensagem.")
                 continue
             try:
-                _liberar_conversa(ctx, "transcribe_audio", _conversa_da_mensagem(msg), f"id={message_id} chat={msg['chat_name']}")
+                chamada.conversa(_conversa_da_mensagem(msg))
             except ToolError as e:
-                problems.append(f"{e}")
+                problems.append(f"#{message_id}: {e}")
                 trancados.add(message_id)
                 continue
             if msg["kind"] != "áudio":

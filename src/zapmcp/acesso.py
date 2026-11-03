@@ -15,10 +15,14 @@ def caminho():
     return config.home() / "logs" / "acesso.log"
 
 
+def _campo(text: str) -> str:
+    return text.replace("|", " ").replace("\n", " ").replace("\r", " ")
+
+
 def registrar(agente: str, tool: str, resumo: str, resultado: str) -> None:
-    """`resultado`: "liberado", "trancado" ou "pedido, liberado" / "pedido, trancado" (quando o diálogo abriu)."""
-    limpo = " ".join(resumo.replace("|", " ").split())
-    linha = f"{time.strftime('%Y-%m-%d %H:%M:%S')} | {agente} | {tool} | {limpo} | {resultado}\n"
+    """`resultado`: "livre", "liberado", "trancado", ou com "pedido, " na frente quando o diálogo abriu."""
+    campos = [time.strftime("%Y-%m-%d %H:%M:%S"), _campo(agente), _campo(tool), " ".join(_campo(resumo).split()), _campo(resultado)]
+    linha = " | ".join(campos) + "\n"
     try:
         path = caminho()
         path.parent.mkdir(parents=True, exist_ok=True)
