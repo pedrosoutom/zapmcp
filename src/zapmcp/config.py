@@ -35,6 +35,11 @@ def _flag(name: str, default: bool) -> bool:
     return default if not value or value.startswith("${") else value in ("1", "true")
 
 
+def update_check_enabled() -> bool:
+    """Avisar quando sair versão nova (consulta o GitHub uma vez por dia). ZAPMCP_UPDATE_CHECK=0 desliga."""
+    return _flag("ZAPMCP_UPDATE_CHECK", True)
+
+
 def transcribe_enabled() -> bool:
     """O servidor transcreve áudios em segundo plano. ZAPMCP_TRANSCRIBE=0 desliga."""
     return _flag("ZAPMCP_TRANSCRIBE", True)

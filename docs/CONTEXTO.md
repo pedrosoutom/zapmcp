@@ -1,6 +1,6 @@
 # ZapMCP — contexto do projeto
 
-Documento de passagem de bastão entre sessões. Atualizado em 2026-10-31, versão 0.3.5.
+Documento de passagem de bastão entre sessões. Atualizado em 2026-11-03, versão 0.3.6.
 Próximo passo combinado: **discutir stack e abordagem do app de desktop** (seção 9).
 
 ## 1. O que é
@@ -12,7 +12,7 @@ API não oficial, não fala com os servidores do WhatsApp e nunca escreve na pas
 Hoje é só MCP (extensão `.mcpb` do Claude Desktop), rodando no Mac do autor. A v1 está concluída e em
 uso; o autor ainda vai testar a leitura de documentos na prática.
 
-## 2. Estado atual (v0.3.5)
+## 2. Estado atual (v0.3.6)
 
 | Tool | O que faz |
 |---|---|
@@ -38,7 +38,11 @@ large-v3-turbo **q5_0** (574 MB, baixado uma vez do Hugging Face, conferido por 
 - limpeza de alucinações: frase repetida em sequência, texto em outro alfabeto, "legendas" em silêncio.
 
 Ajustes na extensão (manifest `user_config`): transcrever áudios, transcrever grupos arquivados,
-transcrever também na bateria.
+transcrever também na bateria, avisar sobre versões novas.
+
+Aviso de versão nova (v0.3.6): o servidor consulta a última release do GitHub uma vez por dia, em
+segundo plano, e a primeira resposta do dia de `list_chats`, `get_messages` ou `search` começa com o
+aviso. Estado em `atualizacao.json`.
 
 Permissão (v0.3.5): a extensão é do tipo `binary` e o Claude Desktop inicia o **lançador
 `bin/zapmcp`**, que inicia o `uv` e fica esperando. O Acesso Total ao Disco é dado uma vez ao
@@ -48,7 +52,7 @@ lançador, e o macOS para de perguntar. Detalhes e medições na seção 7.
 
 ```bash
 uv sync                          # dependências (Python 3.12)
-uv run pytest                    # 15 testes, sobre um banco falso com o formato do WhatsApp
+uv run pytest                    # 19 testes, sobre um banco falso com o formato do WhatsApp
 uv run zapmcp sync [--full]      # atualiza o índice
 uv run zapmcp chats "nome"
 uv run zapmcp export --chat "nome" --since 7d --out ./export/
@@ -85,13 +89,14 @@ WhatsApp (Group Container, protegido) ──cópia──▶ indexador ──▶ 
 | `transcripts.py` | cache de transcrições, fila de pedidos, falhas recentes |
 | `worker.py` | fila de transcrição em processo próprio |
 | `server.py` | servidor FastMCP e as tools |
+| `updates.py` | aviso de versão nova: consulta a última release (`urllib`, 5 s), guarda o estado e monta o aviso |
 | `launcher/zapmcp.c` | lançador em C: acha o `uv`, inicia-o como filho, repassa sinais e o código de saída; não escreve no stdout |
 | `Makefile` | compila o lançador (só quando o fonte muda; assinatura ad hoc) e empacota o `.mcpb` |
 | `cli.py`, `dates.py` | linha de comando; datas como `7d`, `hoje`, `AAAA-MM-DD` |
 | `manifest.json`, `.mcpbignore` | extensão MCPB, tipo `binary`: o Claude Desktop roda o lançador, e o `uv` instala Python e dependências |
 
 Dados em `~/Library/Application Support/zapmcp/`: `index.db`, `transcripts.db`,
-`models/`, `logs/transcricao.log`, `transcricao.lock`, `snapshot/` (temporária).
+`models/`, `logs/transcricao.log`, `transcricao.lock`, `atualizacao.json`, `snapshot/` (temporária).
 
 Regras de implementação:
 - Mudou a forma de montar as linhas (autores, menções, textos)? **Subir `NORMALIZER_VERSION`** em
@@ -168,6 +173,11 @@ sem documentação: pode mudar numa atualização do app.
   desde 2026-09-01, fora dos casks oficiais do Homebrew. Para desenvolver, certificado gratuito
   (Apple Development ou autoassinado). Atualização automática (Sparkle) é opcional; meio-termo
   considerado: o app só avisar que há versão nova, com link para a página de download.
+- **Aviso de versão nova no MCP (2026-11-03):** fonte é a última **release** do GitHub (não a versão
+  na `main`, para só avisar do que foi lançado de propósito); ligado por padrão, com opção de
+  desligar; do GitHub só se usa o número da versão, conferido pelo formato, e o texto é montado no
+  ZapMCP, para uma release não poder mandar instruções ao Claude. Lançar uma versão = subir a versão,
+  commit, push e `gh release create vX.Y.Z` com as novidades.
 
 ## 7. Medições (Mac do autor, M1, 8 GB, set/2026; permissões em out/2026, macOS 26.2)
 

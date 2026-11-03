@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "zapmcp",
   "display_name": "ZapMCP",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "Conversas do WhatsApp Desktop deste Mac para o Claude, lidas de uma cópia local. Só leitura.",
   "long_description": "Lê uma cópia do banco local do WhatsApp Desktop, monta um índice com busca e oferece tools para listar conversas, ler mensagens, buscar, abrir anexos (imagens e documentos) e transcrever áudios (os dos últimos 7 dias e os novos, automaticamente). A transcrição roda no próprio Mac (whisper.cpp, modelo de 0,6 GB baixado uma vez). Nada se conecta aos servidores do WhatsApp e a pasta do WhatsApp nunca é alterada. Os dados ficam em ~/Library/Application Support/zapmcp.",
   "author": {
@@ -28,7 +28,8 @@
       "env": {
         "ZAPMCP_TRANSCRIBE": "${user_config.transcribe}",
         "ZAPMCP_TRANSCRIBE_ON_BATTERY": "${user_config.on_battery}",
-        "ZAPMCP_TRANSCRIBE_ARCHIVED": "${user_config.archived_groups}"
+        "ZAPMCP_TRANSCRIBE_ARCHIVED": "${user_config.archived_groups}",
+        "ZAPMCP_UPDATE_CHECK": "${user_config.update_check}"
       }
     }
   },
@@ -89,6 +90,12 @@
       "title": "Transcrever também na bateria",
       "description": "Desligado: com o Mac na bateria, só transcreve os áudios que o Claude pedir.",
       "default": false
+    },
+    "update_check": {
+      "type": "boolean",
+      "title": "Avisar sobre versões novas",
+      "description": "Uma vez por dia, confere no GitHub se saiu uma versão nova do ZapMCP e avisa na conversa. A consulta revela ao GitHub só o seu endereço IP e a versão instalada.",
+      "default": true
     }
   }
 }

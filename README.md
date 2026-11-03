@@ -92,6 +92,10 @@ make
 Instale o novo `dist/ZapMCP.mcpb` no Claude Desktop e clique em atualizar. A permissão continua
 valendo, a menos que o lançador tenha mudado (`launcher/zapmcp.c`). Nesse caso, libere de novo.
 
+Quando sai uma versão nova, o Claude avisa na conversa, no máximo uma vez por dia, com o link das
+[novidades](https://github.com/pedrosoutom/zapmcp/releases). O aviso pode ser desligado nos ajustes
+da extensão ("Avisar sobre versões novas").
+
 ## Privacidade
 
 - O ZapMCP lê uma cópia do banco do WhatsApp e guarda o índice, as transcrições e o modelo em
@@ -99,6 +103,8 @@ valendo, a menos que o lançador tenha mudado (`launcher/zapmcp.c`). Nesse caso,
 - Os áudios são transcritos no Mac e não saem dele.
 - O que as ferramentas devolvem ao Claude (mensagens, transcrições, imagens, documentos) entra na
   conversa com o Claude, como qualquer texto que você cola nela.
+- Uma vez por dia, o ZapMCP pergunta ao GitHub qual é a última versão. A consulta revela ao GitHub
+  só o seu endereço IP e a versão instalada, e pode ser desligada nos ajustes da extensão.
 
 ## Desinstalar
 

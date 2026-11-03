@@ -2,7 +2,7 @@
 
 Servidor MCP local (Python + FastMCP) que dá ao Claude acesso de leitura ao WhatsApp Desktop do Mac:
 mensagens, imagens, documentos e áudios transcritos no próprio Mac. Distribuído como extensão `.mcpb`
-do Claude Desktop. Repositório público, licença MIT: https://github.com/pedrosoutom/zapmcp. v0.3.5 concluída. **Direção: virar um app de desktop open-source** (fora da App
+do Claude Desktop. Repositório público, licença MIT: https://github.com/pedrosoutom/zapmcp. v0.3.6 concluída. **Direção: virar um app de desktop open-source** (fora da App
 Store; o usuário baixa ou roda o código aberto). **Próximo passo: discutir stack e abordagem desse app.**
 Melhorias registradas em [ROADMAP.md](ROADMAP.md).
 
@@ -30,6 +30,10 @@ make                                             # compila o lançador (se mudou
 - A extensão roda pelo lançador `bin/zapmcp` (`launcher/zapmcp.c`), que fica com o Acesso Total ao
   Disco no lugar do `uv`. Recompilá-lo muda a assinatura (ad hoc) e derruba a permissão: só mexer
   nele com motivo e avisar o autor para liberar de novo.
-- Depois de mudar o código: testes, reempacotar o `.mcpb` e pedir ao autor para reinstalar.
+- Depois de mudar o código: testes, reempacotar o `.mcpb` e pedir ao autor para reinstalar. Cada
+  pacote novo precisa de versão nova (`manifest.json`, `pyproject.toml` e `uv lock`), senão o Claude
+  Desktop não atualiza.
+- Lançar uma versão: commit e push na `main` (quando o autor pedir) e `gh release create vX.Y.Z` com as
+  novidades. O aviso de versão nova dos usuários lê a última release.
 - Commits só quando o autor pedir. O repositório é público: nada de dados reais (nomes, números,
   mensagens, caminhos pessoais) em código, testes ou docs; nos testes, só dados fictícios.

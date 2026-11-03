@@ -125,6 +125,14 @@ do Mac.
 Na v1, o próprio servidor atualiza o índice quando ele tem mais de 5 minutos
 (`ZAPMCP_AUTO_SYNC_SECONDS`, 0 desliga).
 
+## Aviso de versão nova
+
+Ao iniciar, o servidor consulta a última release no GitHub, no máximo uma vez por dia, em segundo
+plano. Se ela for mais nova que a instalada, a primeira resposta do dia de `list_chats`,
+`get_messages` ou `search` começa com um aviso para o usuário. Do GitHub só se usa o número da versão;
+o texto do aviso é fixo. `ZAPMCP_UPDATE_CHECK=0` desliga (no Claude Desktop, "Avisar sobre versões
+novas" nos ajustes da extensão).
+
 ## Onde ficam os dados
 
 - `~/Library/Application Support/zapmcp/index.db`: o índice (mensagens + FTS5)
@@ -132,6 +140,8 @@ Na v1, o próprio servidor atualiza o índice quando ele tem mais de 5 minutos
 - `~/Library/Application Support/zapmcp/transcripts.db`: cache das transcrições, fila de pedidos e falhas
 - `~/Library/Application Support/zapmcp/models/`: o modelo de transcrição
 - `~/Library/Application Support/zapmcp/logs/transcricao.log`: log do processo de transcrição
+- `~/Library/Application Support/zapmcp/atualizacao.json`: última versão vista no GitHub e quando o
+  aviso foi mostrado
 
 ## Limites conhecidos da v1
 

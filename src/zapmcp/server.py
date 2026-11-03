@@ -15,7 +15,7 @@ from fastmcp.tools import ToolResult
 from mcp.types import TextContent
 from pydantic import Field
 
-from . import config, media, store, sync, transcripts, worker
+from . import config, media, store, sync, transcripts, updates, worker
 from . import format as fmt
 from .dates import HELP as DATE_HELP
 from .dates import parse_when
@@ -54,6 +54,13 @@ def _index() -> Iterator:
 
 
 def _refresh() -> str:
+    """Atualiza o índice se preciso. Devolve os avisos para o começo da resposta: versão nova do ZapMCP
+    (no máximo um por dia) e falha ao atualizar."""
+    note = _sync()  # se falhar com erro, o aviso de versão fica para a próxima resposta
+    return updates.notice() + note
+
+
+def _sync() -> str:
     """Na v1, o próprio servidor atualiza o índice quando ele está velho. Devolve um aviso se falhar."""
     max_age = config.auto_sync_seconds()
     if max_age <= 0:
@@ -291,6 +298,7 @@ def transcribe_audio(
 
 def serve() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s zapmcp %(levelname)s %(message)s")
+    updates.start()
     started = time.monotonic()
     try:
         sync.refresh(config.auto_sync_seconds() or 10**9)
