@@ -100,6 +100,8 @@ da extensão ("Avisar sobre versões novas").
 
 - O ZapMCP lê uma cópia do banco do WhatsApp e guarda o índice, as transcrições e o modelo em
   `~/Library/Application Support/zapmcp`. Essa pasta não é criptografada.
+- Dá para escolher quais conversas o Claude vê (`ZAPMCP_CHATS_ALLOW` / `ZAPMCP_CHATS_DENY`, no
+  [guia de uso](docs/USO.md#conversas-que-o-claude-pode-ver)).
 - Os áudios são transcritos no Mac e não saem dele.
 - O que as ferramentas devolvem ao Claude (mensagens, transcrições, imagens, documentos) entra na
   conversa com o Claude, como qualquer texto que você cola nela.

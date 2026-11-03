@@ -508,3 +508,40 @@ def test_parse_when():
     assert parse_when("2026-09-20 08:41:30") == int(datetime(2026, 9, 20, 8, 41, 30).timestamp())
     with pytest.raises(ValueError):
         parse_when("semana passada")
+
+
+def test_chat_allow_and_deny_lists(wa_dir, monkeypatch):
+    from zapmcp.server import mcp
+
+    sync.run()
+    # Bloqueada pelo nome: some de list_chats, resolve_chat, search e dos anexos.
+    monkeypatch.setenv("ZAPMCP_CHATS_DENY", "projeto")
+    with index() as conn:
+        assert store.hidden_chats(conn) == {1}
+        assert [c.id for c in store.chats(conn)] and 1 not in [c.id for c in store.chats(conn)]
+        with pytest.raises(LookupError):
+            store.resolve_chat(conn, "1")
+        with pytest.raises(LookupError):
+            store.resolve_chat(conn, "projeto x")
+        assert store.search(conn, "cliente") == []
+        assert store.message(conn, 4) is None  # a imagem do Projeto X
+        assert store.message(conn, 7) is not None  # Maria Souza continua visível
+
+    async def call():
+        async with Client(mcp) as client:
+            chats = await client.call_tool("list_chats", {})
+            image = await client.call_tool("view_images", {"ids": [4]})
+            return chats.content[0].text, image.content[0].text
+
+    chats, image = asyncio.run(call())
+    assert "Projeto X" not in chats and "Maria Souza" in chats
+    assert "não encontrei" in image
+
+    # Lista liberada: só o que casa aparece; a bloqueada vale por cima.
+    monkeypatch.delenv("ZAPMCP_CHATS_DENY")
+    monkeypatch.setenv("ZAPMCP_CHATS_ALLOW", "1, maria")
+    with index() as conn:
+        assert {c.id for c in store.chats(conn)} == {1, 2}
+    monkeypatch.setenv("ZAPMCP_CHATS_DENY", "2")
+    with index() as conn:
+        assert {c.id for c in store.chats(conn)} == {1}

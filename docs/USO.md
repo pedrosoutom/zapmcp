@@ -72,6 +72,18 @@ claude mcp add --scope user ZapMCP -- /opt/homebrew/bin/uv --directory /caminho/
 
 O caminho absoluto do `uv` é necessário porque o Claude Desktop não herda o `PATH` do terminal.
 
+## Conversas que o Claude pode ver
+
+Por padrão, todas. Duas variáveis restringem, com ids ou pedaços do nome (sem acentos nem
+maiúsculas), separados por vírgula:
+
+- `ZAPMCP_CHATS_ALLOW="Projeto X, 123"`: só estas conversas aparecem.
+- `ZAPMCP_CHATS_DENY="banco, família"`: estas somem. Vale por cima da lista liberada.
+
+Uma conversa escondida não aparece em `list_chats`, não é encontrada por `get_messages` nem
+`search`, e seus anexos e áudios não abrem. O índice continua completo: mudar a lista não exige
+`sync`. No Claude Code e no Codex, passe as variáveis no registro (`-e` / `--env`).
+
 ## Tools
 
 | Tool | Recebe | Devolve |

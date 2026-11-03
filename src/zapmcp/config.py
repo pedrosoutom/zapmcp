@@ -63,3 +63,18 @@ def transcribe_days() -> int:
 def transcribe_archived_groups() -> bool:
     """Incluir grupos arquivados na transcrição automática (desligado por padrão)."""
     return _flag("ZAPMCP_TRANSCRIBE_ARCHIVED", False)
+
+
+def _terms(name: str) -> list[str]:
+    value = os.environ.get(name, "")
+    return [] if value.strip().startswith("${") else [t.strip() for t in value.split(",") if t.strip()]
+
+
+def chats_allow() -> list[str]:
+    """Só estas conversas ficam visíveis ao Claude (ids ou partes do nome, separados por vírgula). Vazio: todas."""
+    return _terms("ZAPMCP_CHATS_ALLOW")
+
+
+def chats_deny() -> list[str]:
+    """Estas conversas ficam escondidas do Claude (ids ou partes do nome, separados por vírgula)."""
+    return _terms("ZAPMCP_CHATS_DENY")

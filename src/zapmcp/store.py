@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from difflib import SequenceMatcher
 from pathlib import Path
 
+from . import config
 from .whatsapp import Chat, Message
 
 SCHEMA = """
@@ -168,6 +169,27 @@ def _index_text(conn: sqlite3.Connection, message_id: int, kind: str, text: str 
 
 # --- leitura (servidor MCP e export) ---
 
+
+def hidden_chats(conn: sqlite3.Connection) -> set[int]:
+    """Conversas que o Claude não deve ver, pelas listas ZAPMCP_CHATS_ALLOW e ZAPMCP_CHATS_DENY.
+
+    Cada termo é um id ou um pedaço do nome (sem acentos nem maiúsculas). Com a lista liberada, só o
+    que casa com ela aparece; a lista bloqueada vale por cima.
+    """
+    allow, deny = config.chats_allow(), config.chats_deny()
+    if not allow and not deny:
+        return set()
+    rows = conn.execute("SELECT id, search_name FROM chats").fetchall()
+
+    def matches(row, terms) -> bool:
+        return any(t == str(row["id"]) if t.isdigit() else search_key(t) in row["search_name"] for t in terms)
+
+    return {r["id"] for r in rows if (allow and not matches(r, allow)) or matches(r, deny)}
+
+
+def _visible(hidden: set[int]) -> str:
+    return f" AND m.chat_id NOT IN ({','.join(map(str, hidden))})" if hidden else ""
+
 _CHATS_SQL = """
     SELECT c.id, c.name, c.search_name, c.is_group, c.archived, s.last_ts, s.n
     FROM chats c
@@ -183,9 +205,12 @@ def chats(
 ) -> list[ChatInfo]:
     """Conversas com mensagens, das mais recentes para as mais antigas; com `query`, as mais parecidas primeiro."""
     rows = conn.execute(_CHATS_SQL + " WHERE s.last_ts >= ?", (active_since or 0,)).fetchall()
+    hidden = hidden_chats(conn)
     wanted = search_key(query)
     found = []
     for r in rows:
+        if r["id"] in hidden:
+            continue
         score = _similarity(wanted, r["search_name"]) if wanted else 0.0
         if wanted and score < MIN_SCORE:
             continue
@@ -199,7 +224,7 @@ def resolve_chat(conn: sqlite3.Connection, ref: str) -> tuple[ChatInfo, list[Cha
     ref = ref.strip()
     if ref.isdigit():
         row = conn.execute(_CHATS_SQL + " WHERE c.id = ?", (int(ref),)).fetchone()
-        if row:
+        if row and row["id"] not in hidden_chats(conn):
             return ChatInfo(
                 row["id"], row["name"], bool(row["is_group"]), row["last_ts"], row["n"], 1.0, bool(row["archived"])
             ), []
@@ -238,7 +263,7 @@ def search(
         JOIN messages m ON m.id = messages_fts.rowid
         JOIN chats c ON c.id = m.chat_id
         WHERE messages_fts MATCH ?
-    """
+    """ + _visible(hidden_chats(conn))
     params: list = []
     if chat_id is not None:
         sql += " AND m.chat_id = ?"
@@ -267,7 +292,7 @@ def message(conn: sqlite3.Connection, message_id: int) -> sqlite3.Row | None:
         """
         SELECT m.*, c.name AS chat_name, c.is_group AS chat_is_group
         FROM messages m JOIN chats c ON c.id = m.chat_id WHERE m.id = ?
-        """,
+        """ + _visible(hidden_chats(conn)),
         (message_id,),
     ).fetchone()
 
