@@ -1,6 +1,6 @@
 # ZapMCP — contexto do projeto
 
-Documento de passagem de bastão entre sessões. Atualizado em 2026-11-03, versão 0.3.7.
+Documento de passagem de bastão entre sessões. Atualizado em 2026-11-03, versão 0.3.8.
 Próximo passo combinado: **discutir stack e abordagem do app de desktop** (seção 9).
 
 ## 1. O que é
@@ -12,7 +12,7 @@ API não oficial, não fala com os servidores do WhatsApp e nunca escreve na pas
 Hoje é só MCP (extensão `.mcpb` do Claude Desktop), rodando no Mac do autor. A v1 está concluída e em
 uso; o autor ainda vai testar a leitura de documentos na prática.
 
-## 2. Estado atual (v0.3.7)
+## 2. Estado atual (v0.3.8)
 
 | Tool | O que faz |
 |---|---|

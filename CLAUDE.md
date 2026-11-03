@@ -2,7 +2,7 @@
 
 Servidor MCP local (Python + FastMCP) que dá ao Claude acesso de leitura ao WhatsApp Desktop do Mac:
 mensagens, imagens, documentos e áudios transcritos no próprio Mac. Distribuído como extensão `.mcpb`
-do Claude Desktop; funciona com outros clientes MCP (stdio), como o Codex. Repositório público, licença MIT: https://github.com/pedrosoutom/zapmcp. v0.3.7 concluída. **Direção: virar um app de desktop open-source** (fora da App
+do Claude Desktop; funciona com outros clientes MCP (stdio), como o Codex. Repositório público, licença MIT: https://github.com/pedrosoutom/zapmcp. v0.3.8 concluída. **Direção: virar um app de desktop open-source** (fora da App
 Store; o usuário baixa ou roda o código aberto). **Próximo passo: discutir stack e abordagem desse app.**
 Melhorias registradas em [ROADMAP.md](ROADMAP.md).
 

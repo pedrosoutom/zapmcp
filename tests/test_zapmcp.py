@@ -455,13 +455,17 @@ def test_update_notice_once_a_day(wa_dir, monkeypatch):
 
     first = updates.notice(today=date(2026, 11, 3))
     assert "versão nova do ZapMCP (0.3.7; esta é a 0.3.6)" in first and updates.RELEASES in first
-    assert "git pull na pasta do ZapMCP" in first  # fora da extensão do Claude Desktop
-    assert "Ignore" not in first
+    assert "git pull na pasta do ZapMCP e reiniciar o assistente" in first  # fora da extensão
+    assert "Claude" not in first and "Ignore" not in first
     assert updates.notice(today=date(2026, 11, 3)) == ""
     assert updates.notice(today=date(2026, 11, 4)) == first
 
+    monkeypatch.setenv("ZAPMCP_LAUNCHER", "/Extensoes/zapmcp/bin/zapmcp")
+    in_extension = updates.notice(today=date(2026, 11, 5))
+    assert "instalar de novo o dist/ZapMCP.mcpb" in in_extension and "Claude" not in in_extension
+
     monkeypatch.setattr(updates, "current", lambda: "0.3.7")  # já atualizado
-    assert updates.notice(today=date(2026, 11, 5)) == ""
+    assert updates.notice(today=date(2026, 11, 6)) == ""
 
 
 def test_update_check_can_be_turned_off(wa_dir, monkeypatch):

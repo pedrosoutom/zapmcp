@@ -150,7 +150,7 @@ O que muda fora do Claude Desktop:
 - Os ajustes da extensão viram variáveis de ambiente, como `ZAPMCP_TRANSCRIBE=0`. A lista está no
   [guia de uso](docs/USO.md).
 - Nem todo assistente mostra as imagens que o `view_images` devolve. Não testamos fora do Claude.
-- Para atualizar, basta `git pull` na pasta do ZapMCP.
+- Para atualizar, basta `git pull` na pasta do ZapMCP e reiniciar o assistente.
 
 ## Privacidade
 

@@ -100,9 +100,9 @@ def notice(today: date | None = None) -> str:
         state["shown_on"] = day
         _save(state)
     if config.launcher_path():
-        how = "git pull, make e reinstalar a extensão no Claude Desktop"
+        how = "git pull e make na pasta do ZapMCP, e instalar de novo o dist/ZapMCP.mcpb"
     else:
-        how = "git pull na pasta do ZapMCP"
+        how = "git pull na pasta do ZapMCP e reiniciar o assistente"
     return (
         f"Aviso para o usuário: há uma versão nova do ZapMCP ({state['latest']}; esta é a {current()}). "
         f"Novidades em {RELEASES}. Para atualizar: {how}.\n\n"
