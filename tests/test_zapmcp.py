@@ -508,3 +508,12 @@ def test_parse_when():
     assert parse_when("2026-09-20 08:41:30") == int(datetime(2026, 9, 20, 8, 41, 30).timestamp())
     with pytest.raises(ValueError):
         parse_when("semana passada")
+
+
+def test_vocabulary_prompt(monkeypatch):
+    from zapmcp import transcribe
+
+    monkeypatch.delenv("ZAPMCP_VOCAB", raising=False)
+    assert transcribe.vocabulary_prompt() is None
+    monkeypatch.setenv("ZAPMCP_VOCAB", " Acme, Projeto X ,, Claude Code ")
+    assert transcribe.vocabulary_prompt() == "Vocabulário: Acme, Projeto X, Claude Code."
