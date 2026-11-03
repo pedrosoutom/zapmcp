@@ -455,6 +455,7 @@ def test_update_notice_once_a_day(wa_dir, monkeypatch):
 
     first = updates.notice(today=date(2026, 11, 3))
     assert "versão nova do ZapMCP (0.3.7; esta é a 0.3.6)" in first and updates.RELEASES in first
+    assert "git pull na pasta do ZapMCP" in first  # fora da extensão do Claude Desktop
     assert "Ignore" not in first
     assert updates.notice(today=date(2026, 11, 3)) == ""
     assert updates.notice(today=date(2026, 11, 4)) == first
@@ -486,6 +487,46 @@ def test_update_notice_in_tool_response(wa_dir, monkeypatch):
     first, second = asyncio.run(two_calls())
     assert first.content[0].text.startswith("Aviso para o usuário: há uma versão nova do ZapMCP (0.4.0")
     assert second.content[0].text.startswith("1 · Projeto X")
+
+
+def test_access_notice_when_launcher_lacks_full_disk_access(wa_dir, monkeypatch, tmp_path):
+    from zapmcp import access
+    from zapmcp.server import mcp
+
+    locked = tmp_path / "TCC.db"  # como o TCC.db sem Acesso Total ao Disco: existe, mas não abre
+    locked.write_bytes(b"")
+    locked.chmod(0)
+    monkeypatch.setattr(access, "PROBE", str(locked))
+    monkeypatch.setattr(access, "_shown", False)
+    monkeypatch.setenv("ZAPMCP_LAUNCHER", "/Extensoes/zapmcp/bin/zapmcp")
+    assert access.granted() is False
+
+    async def two_calls():
+        async with Client(mcp) as client:
+            return [await client.call_tool("list_chats", {}) for _ in range(2)]
+
+    first, second = asyncio.run(two_calls())
+    text = first.content[0].text
+    assert text.startswith("Aviso para o usuário: falta liberar o acesso do ZapMCP")
+    assert "Acesso Total ao Disco" in text and 'open -R "/Extensoes/zapmcp/bin/zapmcp"' in text
+    assert second.content[0].text.startswith("1 · Projeto X")  # uma vez por execução
+
+
+def test_no_access_notice_with_access_or_outside_the_extension(wa_dir, monkeypatch, tmp_path):
+    from zapmcp import access
+
+    readable = tmp_path / "TCC.db"
+    readable.write_bytes(b"")
+    monkeypatch.setattr(access, "PROBE", str(readable))
+    monkeypatch.setattr(access, "_shown", False)
+    monkeypatch.setenv("ZAPMCP_LAUNCHER", "/Extensoes/zapmcp/bin/zapmcp")
+    assert access.notice() == ""  # com acesso
+
+    readable.chmod(0)
+    monkeypatch.delenv("ZAPMCP_LAUNCHER")
+    assert access.notice() == ""  # fora da extensão (terminal, Codex...), o lançador não está em jogo
+    monkeypatch.setenv("ZAPMCP_LAUNCHER", "${__dirname}/bin/zapmcp")
+    assert access.notice() == ""
 
 
 def test_transcript_cleanup():

@@ -1,10 +1,10 @@
 # ZapMCP — guia de uso
 
-Referência completa: comandos, formas de conectar ao Claude, tools, transcrição de áudios, onde
+Referência completa: comandos, formas de conectar ao Claude e a outros assistentes, tools, transcrição de áudios, onde
 ficam os dados e limites conhecidos. Para a visão geral, veja o [README](../README.md).
 
 ```
-WhatsApp (área protegida) ──copia──▶ indexador ──grava──▶ index.db ◀──lê── servidor MCP ◀──tools── Claude
+WhatsApp (área protegida) ──copia──▶ indexador ──grava──▶ index.db ◀──lê── servidor MCP ◀──tools── Claude, Codex…
 ```
 
 ## Requisitos
@@ -37,7 +37,7 @@ uv run zapmcp serve             # servidor MCP (stdio)
 Datas aceitas em `--since`/`--until` e nas tools: `7d`, `24h`, `2w`, `hoje`, `ontem`, `AAAA-MM-DD`,
 `AAAA-MM-DD HH:MM`.
 
-## Conectar ao Claude
+## Conectar a um assistente
 
 **Claude Desktop, pela interface (extensão)**
 
@@ -46,13 +46,20 @@ make    # compila bin/zapmcp (só quando launcher/zapmcp.c muda) e gera dist/Zap
 ```
 
 Depois, em Claude Desktop > Ajustes > Extensões, arraste o `dist/ZapMCP.mcpb` para a página e
-clique em Instalar (ou dê dois cliques no arquivo). A extensão instalada é uma cópia: depois de mudar
-o código, gere o `.mcpb` de novo e reinstale.
+clique em Instalar (ou `open dist/ZapMCP.mcpb`). A extensão instalada é uma cópia: depois de mudar
+o código, gere o `.mcpb` de novo e reinstale. Na primeira instalação, `make acesso` abre o painel de
+Acesso Total ao Disco e mostra o lançador instalado no Finder, para arrastar até a lista.
 
 A extensão é do tipo `binary`: o Claude Desktop inicia o lançador `bin/zapmcp`, que inicia
 `uv run … zapmcp serve` e fica esperando. O `uv` instala o Python e as dependências na primeira vez.
 O lançador existe por causa da permissão: no tipo `uv`, o Claude Desktop inicia o `uv` direto e é o
 `uv` que precisa do Acesso Total ao Disco, valendo para qualquer coisa que rode por ele.
+
+O manifest passa ao servidor o caminho do lançador (`ZAPMCP_LAUNCHER`). Com ele, o servidor confere
+se o lançador já tem Acesso Total ao Disco: tenta abrir, sem ler, o `TCC.db` do usuário, que só abre
+com esse acesso e cuja recusa não gera pedido do macOS. Sem acesso, a primeira resposta de
+`list_chats`, `get_messages` ou `search` de cada execução começa com um aviso que explica ao usuário
+como liberar.
 
 **Claude Code**
 
@@ -71,6 +78,29 @@ claude mcp add --scope user ZapMCP -- /opt/homebrew/bin/uv --directory /caminho/
 ```
 
 O caminho absoluto do `uv` é necessário porque o Claude Desktop não herda o `PATH` do terminal.
+
+**Codex** (não testado): em `~/.codex/config.toml`, que vale para o Codex no terminal, na extensão do
+editor e no app:
+
+```toml
+[mcp_servers.zapmcp]
+command = "/opt/homebrew/bin/uv"
+args = ["--directory", "/caminho/para/zapmcp", "run", "zapmcp", "serve"]
+startup_timeout_sec = 60
+tool_timeout_sec = 120
+
+[mcp_servers.zapmcp.env]
+ZAPMCP_TRANSCRIBE = "1"
+```
+
+O padrão do Codex é 10 s para o servidor iniciar e 60 s por chamada de tool. Na primeira vez, o
+servidor instala as dependências e monta o índice antes de responder, e `transcribe_audio` espera
+até 90 s (`ZAPMCP_TRANSCRIBE_WAIT_SECONDS`).
+
+**Outros assistentes**: o mesmo comando (`uv --directory … run zapmcp serve`) em qualquer cliente
+que aceite servidores MCP locais (stdio). Testado com um cliente MCP genérico (FastMCP), que listou as
+tools e fez uma busca. Fora do Claude Desktop, quem precisa do Acesso Total ao Disco é o app que roda
+o assistente, e os ajustes são as variáveis de ambiente `ZAPMCP_*` desta página.
 
 ## Tools
 

@@ -1,6 +1,6 @@
 # ZapMCP — contexto do projeto
 
-Documento de passagem de bastão entre sessões. Atualizado em 2026-11-03, versão 0.3.6.
+Documento de passagem de bastão entre sessões. Atualizado em 2026-11-03, versão 0.3.7.
 Próximo passo combinado: **discutir stack e abordagem do app de desktop** (seção 9).
 
 ## 1. O que é
@@ -12,7 +12,7 @@ API não oficial, não fala com os servidores do WhatsApp e nunca escreve na pas
 Hoje é só MCP (extensão `.mcpb` do Claude Desktop), rodando no Mac do autor. A v1 está concluída e em
 uso; o autor ainda vai testar a leitura de documentos na prática.
 
-## 2. Estado atual (v0.3.6)
+## 2. Estado atual (v0.3.7)
 
 | Tool | O que faz |
 |---|---|
@@ -44,6 +44,12 @@ Aviso de versão nova (v0.3.6): o servidor consulta a última release do GitHub 
 segundo plano, e a primeira resposta do dia de `list_chats`, `get_messages` ou `search` começa com o
 aviso. Estado em `atualizacao.json`.
 
+Aviso de acesso (v0.3.7): na extensão (o manifest passa `ZAPMCP_LAUNCHER`), o servidor confere se o
+lançador tem Acesso Total ao Disco abrindo, sem ler, o `TCC.db` do usuário; sem acesso, a primeira
+resposta de cada execução explica como liberar. `make acesso` abre o painel dos Ajustes e o Finder
+com o lançador selecionado. Funciona com outros assistentes MCP (stdio): testado com um cliente
+genérico; Codex documentado, não testado.
+
 Permissão (v0.3.5): a extensão é do tipo `binary` e o Claude Desktop inicia o **lançador
 `bin/zapmcp`**, que inicia o `uv` e fica esperando. O Acesso Total ao Disco é dado uma vez ao
 lançador, e o macOS para de perguntar. Detalhes e medições na seção 7.
@@ -52,13 +58,14 @@ lançador, e o macOS para de perguntar. Detalhes e medições na seção 7.
 
 ```bash
 uv sync                          # dependências (Python 3.12)
-uv run pytest                    # 19 testes, sobre um banco falso com o formato do WhatsApp
+uv run pytest                    # 21 testes, sobre um banco falso com o formato do WhatsApp
 uv run zapmcp sync [--full]      # atualiza o índice
 uv run zapmcp chats "nome"
 uv run zapmcp export --chat "nome" --since 7d --out ./export/
 uv run zapmcp transcribe [--all] [--archived] [--limit N]
 uv run zapmcp serve              # servidor MCP (stdio)
 make                             # compila o lançador (se mudou) e gera dist/ZapMCP.mcpb
+make acesso                      # abre o Acesso Total ao Disco e mostra o lançador instalado no Finder
 ```
 
 Instalação no Claude Desktop: **Ajustes > Extensões**, arrastar o `.mcpb` (ou dois cliques). Não é
@@ -90,6 +97,7 @@ WhatsApp (Group Container, protegido) ──cópia──▶ indexador ──▶ 
 | `worker.py` | fila de transcrição em processo próprio |
 | `server.py` | servidor FastMCP e as tools |
 | `updates.py` | aviso de versão nova: consulta a última release (`urllib`, 5 s), guarda o estado e monta o aviso |
+| `access.py` | confere o Acesso Total ao Disco sem disparar pedido e monta o aviso de como liberar |
 | `launcher/zapmcp.c` | lançador em C: acha o `uv`, inicia-o como filho, repassa sinais e o código de saída; não escreve no stdout |
 | `Makefile` | compila o lançador (só quando o fonte muda; assinatura ad hoc) e empacota o `.mcpb` |
 | `cli.py`, `dates.py` | linha de comando; datas como `7d`, `hoje`, `AAAA-MM-DD` |
@@ -206,6 +214,11 @@ sem documentação: pode mudar numa atualização do app.
     leitura passou sem pedido (`authValue=2`). O item às vezes não aparece na lista dos Ajustes,
     mas a permissão vale. `tccutil reset` só remove itens por identificador de pacote; itens por
     caminho só saem limpando a lista inteira.
+  - Conferir o acesso sem pedido (2026-11-03): abrir o `TCC.db` do usuário deu "sem acesso" num
+    processo sem Acesso Total ao Disco e "com acesso" pelo lançador, sem nenhum pedido do macOS.
+- Outros clientes (2026-11-03): um cliente MCP genérico (FastMCP, stdio) iniciou o servidor pelo
+  lançador, listou as 6 tools e fez uma busca. O Codex não estava instalado; a configuração na
+  documentação segue a doc oficial (padrão de 10 s para iniciar e 60 s por tool).
 
 ## 8. Pendências e ideias em aberto
 

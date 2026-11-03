@@ -35,6 +35,12 @@ def _flag(name: str, default: bool) -> bool:
     return default if not value or value.startswith("${") else value in ("1", "true")
 
 
+def launcher_path() -> str:
+    """Caminho do lançador quando o servidor roda pela extensão do Claude Desktop (vem do manifest)."""
+    value = os.environ.get("ZAPMCP_LAUNCHER", "")
+    return "" if value.startswith("${") else value
+
+
 def update_check_enabled() -> bool:
     """Avisar quando sair versão nova (consulta o GitHub uma vez por dia). ZAPMCP_UPDATE_CHECK=0 desliga."""
     return _flag("ZAPMCP_UPDATE_CHECK", True)
