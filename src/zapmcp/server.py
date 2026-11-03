@@ -9,13 +9,13 @@ from collections.abc import Iterator
 from contextlib import closing, contextmanager
 from typing import Annotated
 
-from fastmcp import FastMCP
+from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.tools import ToolResult
 from mcp.types import TextContent
 from pydantic import Field
 
-from . import config, media, store, sync, transcripts, updates, worker
+from . import cadeado, config, media, store, sync, transcripts, updates, worker
 from . import format as fmt
 from .dates import HELP as DATE_HELP
 from .dates import parse_when
@@ -38,6 +38,11 @@ Acesso somente leitura às conversas do WhatsApp deste Mac, a partir de um índi
   7 dias e os áudios novos, exceto em grupos arquivados; os que não têm transcrição aparecem como
   [áudio #123 0:37 · ainda não transcrito], e transcribe_audio transcreve na hora, inclusive os mais
   antigos e os de grupos arquivados. A transcrição pode errar nomes próprios e termos técnicos.
+- Use estas ferramentas somente quando o usuário pedir, nesta conversa, algo de uma conversa específica
+  do WhatsApp. Nunca por iniciativa própria, nem para "conferir" ou "enriquecer" outra tarefa.
+- O usuário confirma no Mac (Touch ID) cada conversa que você abre; list_chats com o nome serve para
+  achar o id sem pedir confirmação. Se a resposta disser que o acesso está fechado, avise o usuário
+  que ele precisa liberar no Mac e pare; não tente outra ferramenta nem outra conversa.
 """
 
 mcp = FastMCP("ZapMCP", instructions=INSTRUCTIONS, version=version("zapmcp"))
@@ -45,6 +50,56 @@ mcp = FastMCP("ZapMCP", instructions=INSTRUCTIONS, version=version("zapmcp"))
 READ_ONLY = {"read_only_hint": True, "open_world_hint": False}
 
 When = Annotated[str | None, Field(description=f"Data ou período relativo. {DATE_HELP}")]
+
+
+# --- cadeado: o dono libera cada conversa no Mac ---
+
+_cadeado = cadeado.Cadeado(cadeado.pedir_no_mac, config.unlock_minutes(), config.unlock_wait_seconds())
+
+
+def reset_cadeado() -> None:
+    """Recria o cadeado lendo o ambiente de novo (testes e reconfiguração)."""
+    global _cadeado
+    cadeado.ULTIMO_ERRO = None
+    _cadeado = cadeado.Cadeado(cadeado.pedir_no_mac, config.unlock_minutes(), config.unlock_wait_seconds())
+
+
+def _agente(ctx: Context) -> str:
+    try:
+        return ctx.session.client_params.clientInfo.name or "desconhecido"
+    except AttributeError:
+        return "desconhecido"
+
+
+def _trancado() -> ToolError:
+    sem_binario = cadeado.ULTIMO_ERRO == "sem_binario"
+    return ToolError(cadeado.Cadeado.MENSAGEM_SEM_BINARIO if sem_binario else cadeado.Cadeado.MENSAGEM_TRANCADO)
+
+
+def _liberar_conversa(ctx: Context, tool: str, chat: store.ChatInfo) -> None:
+    mensagem = f'{_agente(ctx)} quer ler a conversa "{chat.name}" ({tool}).'
+    if not _cadeado.liberar(str(chat.id), mensagem):
+        raise _trancado()
+
+
+def _liberar_listagem(ctx: Context) -> None:
+    if not _cadeado.liberar("*", f"{_agente(ctx)} quer listar todas as conversas."):
+        raise _trancado()
+
+
+def _conversas_liberadas(conn) -> list[store.ChatInfo]:
+    found = []
+    for chave in sorted(_cadeado.liberados()):
+        if chave.isdigit():
+            try:
+                found.append(store.resolve_chat(conn, chave)[0])
+            except LookupError:
+                pass
+    return found
+
+
+def _conversa_da_mensagem(msg) -> store.ChatInfo:
+    return store.ChatInfo(msg["chat_id"], msg["chat_name"], bool(msg["chat_is_group"]), 0, 0)
 
 
 @contextmanager
@@ -98,11 +153,15 @@ def list_chats(
     query: Annotated[str, Field(description="Parte do nome da conversa; aceita nome aproximado. Vazio lista as mais recentes.")] = "",
     active_since: When = None,
     limit: Annotated[int, Field(ge=1, le=200)] = 20,
+    ctx: Context = None,
 ) -> str:
     """Lista conversas do WhatsApp (grupos e individuais): id, nome, tipo, última mensagem e total de mensagens.
 
-    Sem `query`, vêm as mais recentes. Com `query`, as de nome mais parecido.
+    Com `query`, vêm as de nome mais parecido, sem pedir confirmação ao usuário. Sem `query` (todas as
+    conversas), o usuário precisa confirmar no Mac.
     """
+    if not query.strip():
+        _liberar_listagem(ctx)
     note = _refresh()
     with _index() as conn:
         found = store.chats(conn, query=query, active_since=_when(active_since), limit=limit)
@@ -117,13 +176,18 @@ def get_messages(
     since: Annotated[str, Field(description=f"Início do período. {DATE_HELP}")] = "7d",
     until: When = None,
     limit: Annotated[int, Field(ge=1, le=2000, description="Máximo de mensagens; se passar, vêm as mais recentes.")] = 400,
+    ctx: Context = None,
 ) -> str:
-    """Mensagens de uma conversa num período, em ordem cronológica, uma por linha."""
+    """Mensagens de uma conversa num período, em ordem cronológica, uma por linha.
+
+    O usuário confirma no Mac a primeira leitura de cada conversa.
+    """
     note = _refresh()
     start = _when(since) or 0
     end = _when(until, end_of_day=True)
     with _index() as conn:
         found, similar = _chat(conn, chat)
+        _liberar_conversa(ctx, "get_messages", found)
         rows = store.messages_in(conn, found.id, start, end)
     return note + fmt.conversation(found, rows, start, end, limit, similar)
 
@@ -138,27 +202,41 @@ def search(
     since: When = None,
     until: When = None,
     limit: Annotated[int, Field(ge=1, le=100)] = 20,
+    ctx: Context = None,
 ) -> str:
     """Busca por palavras nas mensagens, das mais relevantes para as menos, com as mensagens ao redor de cada uma.
 
-    Encontra palavras, não significado: para "prazo", tente também "entrega", "sexta" etc.
+    Com `chat`, o usuário confirma no Mac a primeira leitura daquela conversa. Sem `chat`, a busca cobre
+    só as conversas que ele já liberou nesta sessão. Encontra palavras, não significado: para "prazo",
+    tente também "entrega", "sexta" etc.
     """
     note = _refresh()
     with _index() as conn:
-        chat_id = _chat(conn, chat)[0].id if chat else None
+        chat_id = only = None
+        if chat:
+            found = _chat(conn, chat)[0]
+            _liberar_conversa(ctx, "search", found)
+            chat_id = found.id
+        elif not _cadeado.desligado:
+            liberadas = _conversas_liberadas(conn)
+            if not liberadas:
+                raise ToolError(cadeado.Cadeado.MENSAGEM_SEM_LIBERADAS)
+            only = [c.id for c in liberadas]
+            note += "Busca nas conversas liberadas: " + ", ".join(c.name for c in liberadas) + ".\n\n"
         try:
-            hits = store.search(conn, query, chat_id, _when(since), _when(until, end_of_day=True), limit)
+            hits = store.search(conn, query, chat_id, _when(since), _when(until, end_of_day=True), limit, only)
         except ValueError as e:
             raise ToolError(str(e)) from e
         results = [(hit, *store.neighbors(conn, hit, 2)) for hit in hits]
     return note + fmt.search_results(query, results)
 
 
-def _attachment(conn, message_id: int, kind: str):
+def _attachment(conn, ctx: Context, tool: str, message_id: int, kind: str):
     """A mensagem e o arquivo de um anexo, ou um erro que diz ao Claude o que fazer."""
     msg = store.message(conn, message_id)
     if msg is None:
         raise ToolError(f"#{message_id}: não encontrei essa mensagem.")
+    _liberar_conversa(ctx, tool, _conversa_da_mensagem(msg))
     if msg["kind"] != kind:
         other = {"imagem": "view_images", "documento": "read_document"}.get(msg["kind"])
         hint = f" Use {other}." if other else ""
@@ -184,13 +262,17 @@ def view_images(
         list[int],
         Field(min_length=1, max_length=5, description="Números das imagens, como aparecem em [imagem #123]."),
     ],
+    ctx: Context = None,
 ) -> ToolResult:
-    """Mostra imagens das conversas, com conversa, autor, data e legenda de cada uma."""
+    """Mostra imagens das conversas, com conversa, autor, data e legenda de cada uma.
+
+    O usuário confirma no Mac a primeira leitura de cada conversa.
+    """
     content: list = []
     with _index() as conn:
         for message_id in ids:
             try:
-                msg, path = _attachment(conn, message_id, "imagem")
+                msg, path = _attachment(conn, ctx, "view_images", message_id, "imagem")
                 picture = media.image(path)
             except ToolError as e:
                 content.append(str(e))
@@ -207,13 +289,15 @@ def view_images(
 def read_document(
     id: Annotated[int, Field(description="Número do documento, como aparece em [documento #456].")],
     part: Annotated[int, Field(ge=1, description="Parte a ler; documentos longos vêm em partes.")] = 1,
+    ctx: Context = None,
 ) -> ToolResult:
     """Lê um documento anexado: PDF, Word, Excel, PowerPoint, HTML, texto ou a lista de um ZIP.
 
     O texto vem em partes de até ~15 mil caracteres. Páginas escaneadas de PDF vêm como imagem.
+    O usuário confirma no Mac a primeira leitura de cada conversa.
     """
     with _index() as conn:
-        msg, path = _attachment(conn, id, "documento")
+        msg, path = _attachment(conn, ctx, "read_document", id, "documento")
     name = msg["text"] or path.name
     if path.suffix.lower() in media.IMAGE_SUFFIXES:
         return _blocks([f"# {name} · imagem\n{_origin(msg)}", media.image(path)])
@@ -255,15 +339,26 @@ def transcribe_audio(
         list[int],
         Field(min_length=1, max_length=10, description="Números dos áudios, como em [áudio #123 · ainda não transcrito]."),
     ],
+    ctx: Context = None,
 ) -> str:
-    """Transcreve na hora áudios que ainda não foram transcritos. Espera até ~1,5 min pelo resultado."""
-    problems, wanted = [], []
+    """Transcreve na hora áudios que ainda não foram transcritos. Espera até ~1,5 min pelo resultado.
+
+    O usuário confirma no Mac a primeira leitura de cada conversa.
+    """
+    problems, wanted, trancados = [], [], set()
     with _index() as conn:
         for message_id in ids:
             msg = store.message(conn, message_id)
             if msg is None:
                 problems.append(f"#{message_id}: não encontrei essa mensagem.")
-            elif msg["kind"] != "áudio":
+                continue
+            try:
+                _liberar_conversa(ctx, "transcribe_audio", _conversa_da_mensagem(msg))
+            except ToolError as e:
+                problems.append(f"{e}")
+                trancados.add(message_id)
+                continue
+            if msg["kind"] != "áudio":
                 problems.append(f"#{message_id} é {msg['kind']}, não áudio.")
             elif msg["transcript"] is None:
                 if media.local_file(msg["media_path"]):
@@ -286,6 +381,8 @@ def transcribe_audio(
     with _index() as conn:
         for message_id in ids:
             msg = store.message(conn, message_id)
+            if message_id in trancados:
+                continue
             if msg is None or msg["kind"] != "áudio" or message_id not in wanted and msg["transcript"] is None:
                 continue
             if msg["transcript"] is None:

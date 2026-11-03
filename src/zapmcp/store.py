@@ -230,8 +230,12 @@ def search(
     since: int | None = None,
     until: int | None = None,
     limit: int = 20,
+    only_chats: Iterable[int] | None = None,
 ) -> list[sqlite3.Row]:
-    """Busca por palavras (FTS5), das mais relevantes para as menos."""
+    """Busca por palavras (FTS5), das mais relevantes para as menos.
+
+    `only_chats` restringe às conversas dadas (lista vazia: nenhum resultado).
+    """
     sql = """
         SELECT m.*, c.name AS chat_name, c.is_group AS chat_is_group
         FROM messages_fts
@@ -243,6 +247,12 @@ def search(
     if chat_id is not None:
         sql += " AND m.chat_id = ?"
         params.append(chat_id)
+    if only_chats is not None:
+        ids = [int(i) for i in only_chats]
+        if not ids:
+            return []
+        sql += f" AND m.chat_id IN ({','.join('?' * len(ids))})"
+        params.extend(ids)
     if since is not None:
         sql += " AND m.ts >= ?"
         params.append(since)

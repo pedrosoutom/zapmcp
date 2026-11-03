@@ -105,6 +105,11 @@ def wa_dir(tmp_path, monkeypatch):
     # Nos testes, nada de processo de transcrição de verdade nem espera.
     monkeypatch.setenv("ZAPMCP_TRANSCRIBE", "0")
     monkeypatch.setenv("ZAPMCP_TRANSCRIBE_WAIT_SECONDS", "0")
+    # Cadeado desligado aqui; tests/test_cadeado.py liga e testa.
+    monkeypatch.setenv("ZAPMCP_UNLOCK_MINUTES", "0")
+    from zapmcp import server
+
+    server.reset_cadeado()
 
     with closing(sqlite3.connect(src / "ContactsV2.sqlite")) as c:
         c.execute("CREATE TABLE ZWAADDRESSBOOKCONTACT (Z_PK INTEGER PRIMARY KEY, ZLID TEXT, ZWHATSAPPID TEXT, ZFULLNAME TEXT)")

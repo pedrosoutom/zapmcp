@@ -38,6 +38,11 @@ class Cadeado:
         self._locks: dict[str, threading.Lock] = {}
         self._guard = threading.Lock()
 
+    @property
+    def desligado(self) -> bool:
+        """ZAPMCP_UNLOCK_MINUTES=0: tudo liberado, sem pedir (modo antigo)."""
+        return self._minutes == 0
+
     def aberto(self, chave: str) -> bool:
         if self._minutes == 0:
             return True
