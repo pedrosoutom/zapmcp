@@ -15,7 +15,7 @@ from fastmcp.tools import ToolResult
 from mcp.types import TextContent
 from pydantic import Field
 
-from . import cadeado, config, media, store, sync, transcripts, updates, worker
+from . import acesso, cadeado, config, media, store, sync, transcripts, updates, worker
 from . import format as fmt
 from .dates import HELP as DATE_HELP
 from .dates import parse_when
@@ -76,15 +76,24 @@ def _trancado() -> ToolError:
     return ToolError(cadeado.Cadeado.MENSAGEM_SEM_BINARIO if sem_binario else cadeado.Cadeado.MENSAGEM_TRANCADO)
 
 
-def _liberar_conversa(ctx: Context, tool: str, chat: store.ChatInfo) -> None:
-    mensagem = f'{_agente(ctx)} quer ler a conversa "{chat.name}" ({tool}).'
-    if not _cadeado.liberar(str(chat.id), mensagem):
+def _passar(ctx: Context, tool: str, chave: str, mensagem: str, resumo: str) -> None:
+    """Passa pelo cadeado e registra no log de acesso; trancado vira ToolError."""
+    agente = _agente(ctx)
+    pedido = not _cadeado.aberto(chave)
+    ok = _cadeado.liberar(chave, mensagem)
+    resultado = ("pedido, " if pedido else "") + ("liberado" if ok else "trancado")
+    acesso.registrar(agente, tool, resumo, resultado)
+    if not ok:
         raise _trancado()
+
+
+def _liberar_conversa(ctx: Context, tool: str, chat: store.ChatInfo, resumo: str | None = None) -> None:
+    mensagem = f'{_agente(ctx)} quer ler a conversa "{chat.name}" ({tool}).'
+    _passar(ctx, tool, str(chat.id), mensagem, resumo if resumo is not None else f"chat={chat.name}")
 
 
 def _liberar_listagem(ctx: Context) -> None:
-    if not _cadeado.liberar("*", f"{_agente(ctx)} quer listar todas as conversas."):
-        raise _trancado()
+    _passar(ctx, "list_chats", "*", f"{_agente(ctx)} quer listar todas as conversas.", "todas")
 
 
 def _conversas_liberadas(conn) -> list[store.ChatInfo]:
@@ -187,7 +196,7 @@ def get_messages(
     end = _when(until, end_of_day=True)
     with _index() as conn:
         found, similar = _chat(conn, chat)
-        _liberar_conversa(ctx, "get_messages", found)
+        _liberar_conversa(ctx, "get_messages", found, f"chat={found.name} since={since} until={until}")
         rows = store.messages_in(conn, found.id, start, end)
     return note + fmt.conversation(found, rows, start, end, limit, similar)
 
@@ -215,7 +224,7 @@ def search(
         chat_id = only = None
         if chat:
             found = _chat(conn, chat)[0]
-            _liberar_conversa(ctx, "search", found)
+            _liberar_conversa(ctx, "search", found, f"query={query} chat={found.name}")
             chat_id = found.id
         elif not _cadeado.desligado:
             liberadas = _conversas_liberadas(conn)
@@ -236,7 +245,7 @@ def _attachment(conn, ctx: Context, tool: str, message_id: int, kind: str):
     msg = store.message(conn, message_id)
     if msg is None:
         raise ToolError(f"#{message_id}: não encontrei essa mensagem.")
-    _liberar_conversa(ctx, tool, _conversa_da_mensagem(msg))
+    _liberar_conversa(ctx, tool, _conversa_da_mensagem(msg), f"id={message_id} chat={msg['chat_name']}")
     if msg["kind"] != kind:
         other = {"imagem": "view_images", "documento": "read_document"}.get(msg["kind"])
         hint = f" Use {other}." if other else ""
@@ -353,7 +362,7 @@ def transcribe_audio(
                 problems.append(f"#{message_id}: não encontrei essa mensagem.")
                 continue
             try:
-                _liberar_conversa(ctx, "transcribe_audio", _conversa_da_mensagem(msg))
+                _liberar_conversa(ctx, "transcribe_audio", _conversa_da_mensagem(msg), f"id={message_id} chat={msg['chat_name']}")
             except ToolError as e:
                 problems.append(f"{e}")
                 trancados.add(message_id)

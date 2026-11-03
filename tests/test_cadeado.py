@@ -174,3 +174,33 @@ def test_instrucoes_pedem_uso_sob_demanda():
     from zapmcp.server import INSTRUCTIONS
 
     assert "somente quando o usuário pedir" in INSTRUCTIONS and "liberar no Mac" in INSTRUCTIONS
+
+
+# --- log de acesso ---
+
+
+def test_log_uma_linha_por_chamada(wa_dir):
+    from zapmcp import acesso
+
+    acesso.registrar("Codex", "search", "query=a|b\nc", "liberado")
+    linhas = (config.home() / "logs" / "acesso.log").read_text().splitlines()
+    assert len(linhas) == 1 and linhas[0].endswith(" | Codex | search | query=a b c | liberado")
+
+
+def test_servidor_registra_acesso(wa_dir, monkeypatch):
+    server, pedidos = _armar(monkeypatch, True)
+    _call("get_messages", {"chat": "1"})
+    _call("get_messages", {"chat": "1"})
+    log = (config.home() / "logs" / "acesso.log").read_text()
+    linhas = log.splitlines()
+    assert len(linhas) == 2
+    assert "| desconhecido | get_messages | chat=Projeto X 🚀 since=7d until=None | pedido, liberado" in linhas[0]
+    assert linhas[1].endswith("| liberado")
+    assert "Combinado" not in log and "Fechamos" not in log  # nunca conteúdo
+
+    monkeypatch.setattr(server.cadeado, "pedir_no_mac", lambda m: False)
+    server.reset_cadeado()
+    _call("search", {"query": "x", "chat": "maria"})
+    assert (config.home() / "logs" / "acesso.log").read_text().splitlines()[-1].endswith(
+        "| search | query=x chat=Maria Souza | pedido, trancado"
+    )
