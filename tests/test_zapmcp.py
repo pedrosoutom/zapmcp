@@ -553,3 +553,17 @@ def test_parse_when():
     assert parse_when("2026-09-20 08:41:30") == int(datetime(2026, 9, 20, 8, 41, 30).timestamp())
     with pytest.raises(ValueError):
         parse_when("semana passada")
+
+
+def test_model_override(tmp_path, monkeypatch):
+    from zapmcp import transcribe
+
+    custom = tmp_path / "ggml-meu-modelo.bin"
+    custom.write_bytes(b"x")
+    monkeypatch.setenv("ZAPMCP_MODEL", str(custom))
+    assert transcribe.ensure_model() == custom
+    assert transcribe.Transcriber().name == "whisper.cpp ggml-meu-modelo"
+
+    monkeypatch.setenv("ZAPMCP_MODEL", str(tmp_path / "nao-existe.bin"))
+    with pytest.raises(FileNotFoundError):
+        transcribe.ensure_model()

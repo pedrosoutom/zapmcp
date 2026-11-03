@@ -1,6 +1,7 @@
 """Transcrição local com whisper.cpp e o modelo large-v3-turbo comprimido (q5, 0,6 GB).
 
-Nada sai do Mac: o único acesso à rede é baixar o modelo, uma vez.
+Nada sai do Mac: o único acesso à rede é baixar o modelo, uma vez. ZAPMCP_MODEL aponta para um
+modelo ggml já existente no Mac (aí nada é baixado).
 """
 
 import hashlib
@@ -33,7 +34,17 @@ def model_path() -> Path:
 
 
 def ensure_model() -> Path:
-    """Baixa o modelo na primeira vez e confere o hash oficial."""
+    """Baixa o modelo na primeira vez e confere o hash oficial.
+
+    ZAPMCP_MODEL aponta para um arquivo ggml do whisper.cpp já existente (por exemplo, o do Handy);
+    nesse caso nada é baixado nem conferido.
+    """
+    custom = os.environ.get("ZAPMCP_MODEL")
+    if custom:
+        path = Path(custom).expanduser()
+        if not path.is_file():
+            raise FileNotFoundError(f"ZAPMCP_MODEL não encontrado: {path}")
+        return path
     path = model_path()
     if path.exists() and path.stat().st_size == MODEL_BYTES:
         return path
@@ -69,10 +80,13 @@ def decode(audio: Path):
 class Transcriber:
     """Carrega o modelo uma vez e transcreve áudio por áudio."""
 
-    name = MODEL_NAME
-
     def __init__(self) -> None:
         self._model = None
+
+    @property
+    def name(self) -> str:
+        custom = os.environ.get("ZAPMCP_MODEL")
+        return f"whisper.cpp {Path(custom).stem}" if custom else MODEL_NAME
 
     def transcribe(self, audio: Path) -> str:
         if self._model is None:
