@@ -176,7 +176,9 @@ novas" nos ajustes da extensão).
 ## Limites conhecidos da v1
 
 - A transcrição erra nomes próprios e termos técnicos (por exemplo, "Claude" vira "Cloud").
-- A decodificação de áudio usa o `afconvert` do macOS; no Windows vai precisar de outro caminho.
+- A decodificação de áudio usa o `afconvert` do macOS; se ele recusar um arquivo e houver `ffmpeg`
+  no PATH (`brew install ffmpeg`), o ffmpeg é tentado em seguida. No Windows vai precisar de outro
+  caminho.
 - Vídeos e figurinhas aparecem só como marcador. Mídias que o WhatsApp Desktop nunca baixou não
   podem ser abertas.
 - Parte dos códigos de `ZMESSAGETYPE` ainda não foi mapeada e aparece como `[tipo N]` (cerca de 4%

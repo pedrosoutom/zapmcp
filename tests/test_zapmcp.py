@@ -2,8 +2,11 @@
 
 import asyncio
 import base64
+import contextlib
 import io
 import sqlite3
+import subprocess
+import wave
 import zipfile
 import time
 from contextlib import closing
@@ -553,3 +556,28 @@ def test_parse_when():
     assert parse_when("2026-09-20 08:41:30") == int(datetime(2026, 9, 20, 8, 41, 30).timestamp())
     with pytest.raises(ValueError):
         parse_when("semana passada")
+
+
+def test_decode_falls_back_to_ffmpeg(tmp_path, monkeypatch):
+    from zapmcp import transcribe
+
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd[0])
+        if cmd[0] == "afconvert":
+            raise subprocess.CalledProcessError(1, cmd, stderr=b"nope")
+        wav = tmp_path / "audio.wav"
+        with wave.open(str(wav), "wb") as w:
+            w.setnchannels(1), w.setsampwidth(2), w.setframerate(16000), w.writeframes(b"\0\0" * 16000)
+        return subprocess.CompletedProcess(cmd, 0)
+
+    monkeypatch.setattr(transcribe.subprocess, "run", fake_run)
+    monkeypatch.setattr(transcribe.shutil, "which", lambda name: "/usr/local/bin/ffmpeg")
+    monkeypatch.setattr(transcribe.tempfile, "TemporaryDirectory", lambda prefix: contextlib.nullcontext(str(tmp_path)))
+    samples = transcribe.decode(tmp_path / "x.opus")
+    assert calls == ["afconvert", "/usr/local/bin/ffmpeg"] and len(samples) == 16000
+
+    monkeypatch.setattr(transcribe.shutil, "which", lambda name: None)
+    with pytest.raises(subprocess.CalledProcessError):
+        transcribe.decode(tmp_path / "x.opus")
