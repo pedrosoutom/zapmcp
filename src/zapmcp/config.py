@@ -63,3 +63,24 @@ def transcribe_days() -> int:
 def transcribe_archived_groups() -> bool:
     """Incluir grupos arquivados na transcrição automática (desligado por padrão)."""
     return _flag("ZAPMCP_TRANSCRIBE_ARCHIVED", False)
+
+
+def _number(name: str, default: int) -> int:
+    value = os.environ.get(name, "").strip()
+    return default if not value or value.startswith("${") else int(float(value))
+
+
+def unlock_minutes() -> int:
+    """Por quantos minutos uma conversa fica liberada depois que o dono confirma no Mac. 0 desliga o cadeado."""
+    return _number("ZAPMCP_UNLOCK_MINUTES", 15)
+
+
+def unlock_wait_seconds() -> int:
+    """Quanto uma tool espera o dono responder ao pedido de Touch ID."""
+    return _number("ZAPMCP_UNLOCK_WAIT_SECONDS", 60)
+
+
+def unlock_binary() -> Path:
+    """O programa que mostra o pedido de Touch ID (bin/zapmcp-unlock, compilado pelo make)."""
+    default = Path(__file__).resolve().parents[2] / "bin" / "zapmcp-unlock"
+    return Path(os.environ.get("ZAPMCP_UNLOCK_BIN") or default).expanduser()
