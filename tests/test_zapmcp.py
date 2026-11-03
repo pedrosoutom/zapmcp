@@ -508,3 +508,14 @@ def test_parse_when():
     assert parse_when("2026-09-20 08:41:30") == int(datetime(2026, 9, 20, 8, 41, 30).timestamp())
     with pytest.raises(ValueError):
         parse_when("semana passada")
+
+
+def test_databases_are_private(wa_dir):
+    from zapmcp import transcripts
+
+    sync.run()
+    with closing(transcripts.connect()):
+        pass
+    for name in ("index.db", "transcripts.db"):
+        assert (config.home() / name).stat().st_mode & 0o777 == 0o600
+    assert config.home().stat().st_mode & 0o777 == 0o700
