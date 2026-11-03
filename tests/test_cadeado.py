@@ -117,14 +117,14 @@ def test_list_chats_com_nome_nao_pede_e_sem_nome_pede(wa_dir, monkeypatch):
     assert not r.is_error and "Projeto X" in r.content[0].text and pedidos == []
     r = _call("list_chats", {})
     assert r.is_error and r.content[0].text == server.cadeado.Cadeado.MENSAGEM_TRANCADO
-    assert pedidos == ["desconhecido quer listar todas as conversas."]
+    assert pedidos == ["mcp quer listar todas as conversas."]
 
 
 def test_get_messages_pede_a_conversa_e_trancada_nao_devolve(wa_dir, monkeypatch):
     server, pedidos = _armar(monkeypatch, False)
     r = _call("get_messages", {"chat": "projeto x"})
     assert r.is_error and r.content[0].text == server.cadeado.Cadeado.MENSAGEM_TRANCADO
-    assert pedidos == ['desconhecido quer ler a conversa "Projeto X 🚀" (get_messages).']
+    assert pedidos == ['mcp quer ler a conversa "Projeto X 🚀" (get_messages).']
 
 
 def test_confirmou_libera_so_aquela_conversa(wa_dir, monkeypatch):
@@ -194,7 +194,7 @@ def test_servidor_registra_acesso(wa_dir, monkeypatch):
     log = (config.home() / "logs" / "acesso.log").read_text()
     linhas = log.splitlines()
     assert len(linhas) == 2
-    assert "| desconhecido | get_messages | chat=Projeto X 🚀 since=7d until=None | pedido, liberado" in linhas[0]
+    assert "| mcp | get_messages | chat=Projeto X 🚀 since=7d until=None | pedido, liberado" in linhas[0]
     assert linhas[1].endswith("| liberado")
     assert "Combinado" not in log and "Fechamos" not in log  # nunca conteúdo
 

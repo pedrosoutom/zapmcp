@@ -65,8 +65,11 @@ def reset_cadeado() -> None:
 
 
 def _agente(ctx: Context) -> str:
+    """Nome que o cliente MCP declarou ao conectar (Claude Code, Codex, Claude Desktop...)."""
     try:
-        return ctx.session.client_params.clientInfo.name or "desconhecido"
+        params = ctx.session.client_params
+        info = getattr(params, "client_info", None) or getattr(params, "clientInfo", None)
+        return (info.name if info else "") or "desconhecido"
     except AttributeError:
         return "desconhecido"
 
