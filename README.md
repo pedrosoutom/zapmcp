@@ -155,7 +155,8 @@ O que muda fora do Claude Desktop:
 ## Privacidade
 
 - O ZapMCP lê uma cópia do banco do WhatsApp e guarda o índice, as transcrições e o modelo em
-  `~/Library/Application Support/zapmcp`. Essa pasta não é criptografada.
+  `~/Library/Application Support/zapmcp`. Essa pasta não é criptografada, mas só o seu usuário lê
+  (permissões 700/600).
 - Os áudios são transcritos no Mac e não saem dele.
 - O que as ferramentas devolvem ao assistente (mensagens, transcrições, imagens, documentos) entra
   na conversa com ele, como qualquer texto que você cola nela.

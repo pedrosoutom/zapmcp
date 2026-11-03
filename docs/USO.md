@@ -165,6 +165,8 @@ novas" nos ajustes da extensão).
 
 ## Onde ficam os dados
 
+A pasta fica com permissão 700 e os bancos com 600: só o seu usuário lê.
+
 - `~/Library/Application Support/zapmcp/index.db`: o índice (mensagens + FTS5)
 - `~/Library/Application Support/zapmcp/snapshot/`: cópia de trabalho, apagada ao fim de cada sync
 - `~/Library/Application Support/zapmcp/transcripts.db`: cache das transcrições, fila de pedidos e falhas

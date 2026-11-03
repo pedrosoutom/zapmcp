@@ -1,5 +1,6 @@
 """O índice próprio (index.db): o contrato entre o indexador, o servidor MCP e o export."""
 
+import os
 import re
 import sqlite3
 import unicodedata
@@ -61,6 +62,7 @@ class ChatInfo:
 def connect(path: Path) -> sqlite3.Connection:
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path, timeout=30)
+    private(path)
     conn.row_factory = sqlite3.Row
     # Índices criados antes da transcrição de áudio não têm a coluna; ela entra antes do resto do schema.
     columns = {r["name"] for r in conn.execute("PRAGMA table_info(messages)")}
@@ -68,6 +70,15 @@ def connect(path: Path) -> sqlite3.Connection:
         conn.execute("ALTER TABLE messages ADD COLUMN transcript TEXT")
     conn.executescript(SCHEMA)
     return conn
+
+
+def private(path: Path) -> None:
+    """Só o dono lê o banco (600) e a pasta (700). O SQLite copia a permissão do banco para o -wal e o -shm."""
+    try:
+        os.chmod(path.parent, 0o700)
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
 
 
 # --- escrita (indexador) ---

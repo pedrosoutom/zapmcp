@@ -226,9 +226,9 @@ Melhorias já descritas em detalhe estão no [ROADMAP.md](../ROADMAP.md): o que 
 do acesso (assinatura estável do lançador) e o dicionário de apelidos para achar conversas.
 
 - **Nome final.**
-- **Privacidade do índice**: `index.db` e `transcripts.db` ficam em pasta comum, legíveis por
-  qualquer processo do usuário (a pasta do WhatsApp é protegida). Opções: índice só em memória no
-  servidor (recomendado para o modo só-MCP) ou criptografia com chave no Keychain.
+- **Privacidade do índice**: `index.db` e `transcripts.db` ficam 600 e a pasta 700 (só o usuário).
+  Qualquer processo do mesmo usuário ainda lê. Opções além disso: índice só em memória no servidor
+  (recomendado para o modo só-MCP) ou criptografia com chave no Keychain.
 - **Nomes gravados nas linhas**: renomear um contato só reflete nas mensagens antigas após
   `sync --full`. Correção possível: guardar o jid no índice e resolver o nome na leitura.
 - Glossário do usuário como dica para o Whisper (resolveria "Claude" → "Cloud"). Sugerido, não aprovado.
