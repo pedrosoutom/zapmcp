@@ -149,6 +149,8 @@ do Mac.
   as transcrições sobrevivem quando o índice é refeito.
 - Limpeza automática das falhas conhecidas do Whisper: frase repetida em sequência, texto em outro
   alfabeto e as "legendas" que ele inventa em áudio silencioso.
+- `ZAPMCP_VOCAB=Acme,Projeto X,Claude Code` passa nomes próprios e termos técnicos ao Whisper
+  (como `initial_prompt`), que assim erra menos ao escrevê-los. Separe por vírgula.
 - Velocidade no M1: cerca de 8× o tempo real (1 minuto de áudio em ~8 s). Enquanto transcreve, a GPU
   fica perto de 100%; processador (~6% de um núcleo) e memória (~300 MB) ficam baixos.
 
@@ -175,7 +177,8 @@ novas" nos ajustes da extensão).
 
 ## Limites conhecidos da v1
 
-- A transcrição erra nomes próprios e termos técnicos (por exemplo, "Claude" vira "Cloud").
+- A transcrição erra nomes próprios e termos técnicos (por exemplo, "Claude" vira "Cloud");
+  `ZAPMCP_VOCAB` reduz, não elimina.
 - A decodificação de áudio usa o `afconvert` do macOS; no Windows vai precisar de outro caminho.
 - Vídeos e figurinhas aparecem só como marcador. Mídias que o WhatsApp Desktop nunca baixou não
   podem ser abertas.

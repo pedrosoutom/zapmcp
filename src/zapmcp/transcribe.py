@@ -66,6 +66,12 @@ def decode(audio: Path):
     return np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
 
 
+def vocabulary_prompt() -> str | None:
+    """ZAPMCP_VOCAB="Acme, Projeto X" → dica ao Whisper com os termos; None sem a variável."""
+    vocab = [t.strip() for t in os.environ.get("ZAPMCP_VOCAB", "").split(",") if t.strip()]
+    return "Vocabulário: " + ", ".join(vocab) + "." if vocab else None
+
+
 class Transcriber:
     """Carrega o modelo uma vez e transcreve áudio por áudio."""
 
@@ -78,8 +84,11 @@ class Transcriber:
         if self._model is None:
             from pywhispercpp.model import Model
 
+            extra = {}
+            if prompt := vocabulary_prompt():  # nomes próprios e termos técnicos que o Whisper costuma errar
+                extra["initial_prompt"] = prompt
             self._model = Model(str(ensure_model()), language="pt", print_progress=False, print_realtime=False,
-                                redirect_whispercpp_logs_to=os.devnull)
+                                redirect_whispercpp_logs_to=os.devnull, **extra)
         segments = [s.text for s in self._model.transcribe(decode(audio))]
         return clean(segments)
 
